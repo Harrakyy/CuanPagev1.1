@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { createContext, useContext, useState, useEffect } from "react"
+import { createContext, useContext, useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import type { User as SupabaseUser } from "@supabase/supabase-js"
@@ -32,34 +32,85 @@ interface SignupData {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
+// Cache profile in memory so we don't refetch on every re-render
+let profileCache: Record<string, User> = {}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [supabaseUser, setSupabaseUser] = useState<SupabaseUser | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const router = useRouter()
   const supabase = createClient()
+  const isFetching = useRef(false)
+
+  const fetchUserProfile = async (userId: string): Promise<User | null> => {
+    // Return cached profile if available
+    if (profileCache[userId]) {
+      setUser(profileCache[userId])
+      return profileCache[userId]
+    }
+
+    // Prevent duplicate concurrent fetches
+    if (isFetching.current) return null
+    isFetching.current = true
+
+    try {
+      const { data: profile, error } = await supabase
+        .from("profiles")
+        .select("id, full_name, email, whatsapp, role")
+        .eq("id", userId)
+        .single()
+
+      if (error || !profile) {
+        console.error("Error fetching profile:", error)
+        return null
+      }
+
+      const mappedUser: User = {
+        id: profile.id,
+        name: profile.full_name || profile.email?.split("@")[0] || "User",
+        email: profile.email || "",
+        whatsapp: profile.whatsapp || undefined,
+        role: profile.role as "admin" | "customer",
+      }
+
+      // Cache it
+      profileCache[userId] = mappedUser
+      setUser(mappedUser)
+      return mappedUser
+    } finally {
+      isFetching.current = false
+    }
+  }
 
   useEffect(() => {
-    // Get initial session
+    let mounted = true
+
     const getSession = async () => {
       const { data: { session } } = await supabase.auth.getSession()
-      
-      if (session?.user) {
+
+      if (session?.user && mounted) {
         setSupabaseUser(session.user)
         await fetchUserProfile(session.user.id)
       }
-      setIsLoading(false)
+
+      if (mounted) setIsLoading(false)
     }
 
     getSession()
 
-    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        if (!mounted) return
+
         if (event === "SIGNED_IN" && session?.user) {
           setSupabaseUser(session.user)
-          await fetchUserProfile(session.user.id)
+          // Only fetch if not already cached
+          if (!profileCache[session.user.id]) {
+            await fetchUserProfile(session.user.id)
+          }
         } else if (event === "SIGNED_OUT") {
+          profileCache = {}
           setUser(null)
           setSupabaseUser(null)
         }
@@ -67,36 +118,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     )
 
     return () => {
+      mounted = false
       subscription.unsubscribe()
     }
   }, [])
 
-  const fetchUserProfile = async (userId: string) => {
-    const { data: profile, error } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", userId)
-      .single()
-
-    if (error) {
-      console.error("Error fetching profile:", error)
-      return
-    }
-
-    if (profile) {
-      setUser({
-        id: profile.id,
-        name: profile.full_name || profile.email?.split("@")[0] || "User",
-        email: profile.email || "",
-        whatsapp: profile.whatsapp || undefined,
-        role: profile.role as "admin" | "customer",
-      })
-    }
-  }
-
   const login = async (email: string, password: string): Promise<{ error?: string }> => {
     setIsLoading(true)
-    
+
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -108,17 +137,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (data.user) {
-      await fetchUserProfile(data.user.id)
-      
-      // Get the user's role to redirect appropriately
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", data.user.id)
-        .single()
-
+      // Single profile fetch — use returned data directly, no second query
+      const profile = await fetchUserProfile(data.user.id)
       setIsLoading(false)
-      
+
       if (profile?.role === "admin") {
         router.push("/admin")
       } else {
@@ -131,12 +153,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signup = async (data: SignupData): Promise<{ error?: string }> => {
     setIsLoading(true)
-    
+
     const { data: authData, error } = await supabase.auth.signUp({
       email: data.email,
       password: data.password,
       options: {
-        emailRedirectTo: process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL ?? 
+        emailRedirectTo: process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL ??
           `${window.location.origin}/auth/callback`,
         data: {
           full_name: data.name,
@@ -151,14 +173,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     setIsLoading(false)
-    
-    // If email confirmation is required, redirect to success page
+
     if (authData.user && !authData.session) {
       router.push("/auth/sign-up-success")
       return {}
     }
 
-    // If session exists immediately (email confirmation disabled)
     if (authData.session) {
       router.push("/dashboard")
     }
@@ -167,6 +187,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const logout = async () => {
+    profileCache = {}
     await supabase.auth.signOut()
     setUser(null)
     setSupabaseUser(null)
