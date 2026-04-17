@@ -62,7 +62,7 @@ function AdminSidebarInner() {
       <div className="p-6 border-b border-slate-800">
         <div className="flex items-center gap-3">
           <span className="text-xl font-bold">CuanPage.</span>
-          <span className="text-xs bg-indigo-500 text-white px-2 py-0.5 rounded-full">
+          <span className="text-xs bg-[#BEFF47] text-black px-2 py-0.5 rounded-full">
             Admin Panel
           </span>
         </div>
@@ -82,14 +82,14 @@ function AdminSidebarInner() {
               className={cn(
                 "flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors",
                 active
-                  ? "bg-indigo-600 text-white"
-                  : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                  ? "bg-[#BEFF47] text-black"
+                  : "text-slate-300 hover:bg-white/5 hover:text-white"
               )}
             >
               <Icon className="h-5 w-5" />
               <span className="flex-1">{item.label}</span>
               {badgeCount && badgeCount > 0 && (
-                <span className="bg-indigo-500 text-white text-xs px-2 py-0.5 rounded-full min-w-[1.5rem] text-center">
+                <span className="bg-[#BEFF47] text-black text-xs px-2 py-0.5 rounded-full min-w-[1.5rem] text-center">
                   {badgeCount}
                 </span>
               )}
@@ -102,7 +102,7 @@ function AdminSidebarInner() {
       <div className="p-4 border-t border-slate-800">
         <div className="flex items-center gap-3 mb-4">
           <Avatar className="h-10 w-10">
-            <AvatarFallback className="bg-indigo-600 text-white">
+            <AvatarFallback className="bg-[#BEFF47] text-black">
               {user?.name?.charAt(0) || "A"}
             </AvatarFallback>
           </Avatar>
@@ -115,7 +115,7 @@ function AdminSidebarInner() {
         </div>
         <Button
           variant="ghost"
-          className="w-full justify-start text-slate-300 hover:text-white hover:bg-slate-800"
+          className="w-full justify-start text-slate-300 hover:text-white hover:bg-white/5"
           onClick={handleLogout}
         >
           <LogOut className="h-4 w-4 mr-2" />

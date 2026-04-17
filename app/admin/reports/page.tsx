@@ -28,12 +28,12 @@ import {
 } from "@/lib/supabase/queries"
 
 const STATUS_COLORS: Record<string, string> = {
-  completed: "#22c55e",
-  in_progress: "#6366f1",
-  review: "#a855f7",
-  pending: "#eab308",
-  revision: "#f97316",
-  cancelled: "#ef4444",
+  completed: "rgba(0,0,0,0.20)",
+  in_progress: "#BEFF47",
+  review: "rgba(0,0,0,0.35)",
+  pending: "rgba(0,0,0,0.50)",
+  revision: "rgba(0,0,0,0.65)",
+  cancelled: "rgba(0,0,0,0.80)",
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -207,8 +207,8 @@ export default function ReportsPage() {
                         {stat.value}
                       </p>
                     </div>
-                    <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg">
-                      <Icon className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+                    <div className="p-2 bg-black/5 rounded-lg">
+                      <Icon className="h-5 w-5 text-black" />
                     </div>
                   </div>
                 </CardContent>
@@ -247,9 +247,9 @@ export default function ReportsPage() {
                   <Line
                     type="monotone"
                     dataKey="revenue"
-                    stroke="#6366F1"
+                    stroke="#000000"
                     strokeWidth={2}
-                    dot={{ fill: "#6366F1", strokeWidth: 2 }}
+                    dot={{ fill: "#000000", strokeWidth: 2 }}
                   />
                 </LineChart>
               </ResponsiveContainer>
@@ -336,7 +336,7 @@ export default function ReportsPage() {
                       borderRadius: "8px",
                     }}
                   />
-                  <Bar dataKey="revenue" fill="#6366F1" radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="revenue" fill="#000000" radius={[0, 4, 4, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             )}
@@ -372,12 +372,12 @@ export default function ReportsPage() {
                         <span
                           className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${
                             customer.rank === 1
-                              ? "bg-yellow-100 text-yellow-800"
+                              ? "bg-[#BEFF47] text-black"
                               : customer.rank === 2
-                              ? "bg-gray-100 text-gray-800"
+                              ? "bg-black/10 text-black"
                               : customer.rank === 3
-                              ? "bg-orange-100 text-orange-800"
-                              : "bg-gray-50 text-gray-600"
+                              ? "bg-black/10 text-black"
+                              : "bg-black/5 text-black/70"
                           }`}
                         >
                           {customer.rank}

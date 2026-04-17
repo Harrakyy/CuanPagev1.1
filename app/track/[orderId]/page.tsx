@@ -4,88 +4,89 @@ import * as React from "react"
 import { useState, useEffect } from "react"
 import { use } from "react"
 import Link from "next/link"
-import { Check, MessageCircle, Star, Search, Clock } from "lucide-react"
+import { Check, MessageCircle, Star, Search, Clock, Lock, Eye as EyeIcon, CheckCircle2, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
+import { Badge } from "@/components/ui/badge"
+import { cn } from "@/lib/utils"
+import { useAuth } from "@/contexts/auth-context"
+import {
+  getOrderByOrderNumber,
+  getOrderUpdates,
+  formatDate,
+  type Order,
+  type OrderUpdate,
+} from "@/lib/supabase/queries"
 
-// Mock order data
-const mockOrders: Record<string, {
-  id: string
-  service: string
-  orderDate: string
-  estimatedCompletion: string
-  assignedTo: string
-  status: "Pending" | "Dikerjakan" | "Review" | "Selesai"
-  progress: number
-  updates: { date: string; time: string; message: string }[]
-}> = {
-  "ORD-001": {
-    id: "ORD-001",
-    service: "Landing Page",
-    orderDate: "15 Januari 2024",
-    estimatedCompletion: "1 Februari 2024",
-    assignedTo: "Tim Design A",
-    status: "Dikerjakan",
-    progress: 65,
-    updates: [
-      { date: "20 Jan 2024", time: "14:30", message: "Wireframe telah disetujui, melanjutkan ke tahap desain visual." },
-      { date: "18 Jan 2024", time: "10:15", message: "Wireframe selesai, menunggu review dari klien." },
-      { date: "16 Jan 2024", time: "09:00", message: "Memulai pembuatan wireframe dan struktur halaman." },
-      { date: "15 Jan 2024", time: "11:00", message: "Pesanan diterima dan sedang diproses." },
-    ],
-  },
-  "ORD-002": {
-    id: "ORD-002",
-    service: "Company Profile",
-    orderDate: "10 Januari 2024",
-    estimatedCompletion: "25 Januari 2024",
-    assignedTo: "Tim Design B",
-    status: "Review",
-    progress: 90,
-    updates: [
-      { date: "22 Jan 2024", time: "16:00", message: "Website sudah live di staging, menunggu feedback final." },
-      { date: "20 Jan 2024", time: "11:30", message: "Development selesai, memulai QA testing." },
-      { date: "15 Jan 2024", time: "14:00", message: "Desain disetujui, memulai development." },
-    ],
-  },
-  "ORD-003": {
-    id: "ORD-003",
-    service: "E-Commerce",
-    orderDate: "5 Januari 2024",
-    estimatedCompletion: "15 Februari 2024",
-    assignedTo: "Tim Development",
-    status: "Pending",
-    progress: 10,
-    updates: [
-      { date: "6 Jan 2024", time: "10:00", message: "Pesanan masuk antrian, akan segera diproses." },
-      { date: "5 Jan 2024", time: "14:30", message: "Pesanan diterima." },
-    ],
-  },
-  "ORD-004": {
-    id: "ORD-004",
-    service: "Portfolio Website",
-    orderDate: "20 Desember 2023",
-    estimatedCompletion: "10 Januari 2024",
-    assignedTo: "Tim Design A",
-    status: "Selesai",
-    progress: 100,
-    updates: [
-      { date: "10 Jan 2024", time: "15:00", message: "Project selesai dan sudah di-deploy ke domain klien." },
-      { date: "8 Jan 2024", time: "11:00", message: "Revisi minor selesai, menunggu approval final." },
-      { date: "5 Jan 2024", time: "09:30", message: "Website sudah live di staging untuk review." },
-    ],
-  },
+const steps: Array<Order["status"]> = ["pending", "in_progress", "review", "completed"]
+
+const statusLabels: Record<Order["status"], string> = {
+  pending: "Menunggu",
+  in_progress: "Dikerjakan",
+  review: "Review",
+  revision: "Revisi",
+  completed: "Selesai",
+  cancelled: "Dibatalkan",
 }
 
-const steps = ["Pending", "Dikerjakan", "Review", "Selesai"]
+const statusBadge: Record<Order["status"], string> = {
+  pending: "bg-black/5 text-black border border-black/10",
+  in_progress: "bg-[#BEFF47] text-black border border-black/10",
+  review: "bg-black/5 text-black border border-black/10",
+  revision: "bg-black/5 text-black border border-black/10",
+  completed: "bg-black/5 text-black border border-black/10",
+  cancelled: "bg-black/5 text-black border border-black/10",
+}
+
+const approvalLabel: Record<Order["approval_status"], string> = {
+  pending_approval: "Menunggu Approval",
+  approved: "Approved",
+  rejected: "Rejected",
+}
+
+const approvalBadge: Record<Order["approval_status"], string> = {
+  pending_approval: "bg-black/5 text-black border border-black/10",
+  approved: "bg-[#BEFF47] text-black border border-black/10",
+  rejected: "bg-black text-white border border-black",
+}
 
 export default function TrackPage({ params }: { params: Promise<{ orderId: string }> }) {
   const { orderId } = use(params)
-  const [order, setOrder] = useState(mockOrders[orderId] || null)
+  const { user, isLoading: authLoading } = useAuth()
+  const [order, setOrder] = useState<Order | null>(null)
+  const [updates, setUpdates] = useState<OrderUpdate[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   const [lastUpdated, setLastUpdated] = useState(new Date())
   const [rating, setRating] = useState(0)
   const [feedback, setFeedback] = useState("")
   const [submitted, setSubmitted] = useState(false)
+
+  useEffect(() => {
+    async function load() {
+      if (authLoading) return
+      if (!user) {
+        setIsLoading(false)
+        return
+      }
+      try {
+        const orderData = await getOrderByOrderNumber(orderId)
+        const isOwner = orderData.customer_id === user.id
+        const isAdmin = user.role === "admin"
+        if (!isOwner && !isAdmin) {
+          setOrder(null)
+          setUpdates([])
+          return
+        }
+
+        const visibleUpdates = await getOrderUpdates(orderData.id, { visibleOnly: !isAdmin })
+        setOrder(orderData)
+        setUpdates(visibleUpdates)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    load()
+  }, [authLoading, orderId, user])
 
   // Auto-refresh every 30 seconds
   useEffect(() => {
@@ -103,7 +104,7 @@ export default function TrackPage({ params }: { params: Promise<{ orderId: strin
     return `${diff} menit lalu`
   }
 
-  const getStepIndex = (status: string) => steps.indexOf(status)
+  const getStepIndex = (status: Order["status"]) => steps.indexOf(status)
   const currentStepIndex = order ? getStepIndex(order.status) : -1
 
   const handleSubmitRating = (e: React.FormEvent) => {
@@ -111,7 +112,47 @@ export default function TrackPage({ params }: { params: Promise<{ orderId: strin
     setSubmitted(true)
   }
 
-  // Not found state
+  if (authLoading || isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col">
+        <header className="py-6 text-center border-b border-border">
+          <Link href="/" className="text-xl font-bold tracking-tight text-foreground">
+            CuanPage.
+          </Link>
+          <p className="text-sm text-muted-foreground mt-1">Lacak Pesanan</p>
+        </header>
+        <main className="flex-1 flex items-center justify-center px-6">
+          <p className="text-sm text-muted-foreground">Memuat…</p>
+        </main>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col">
+        <header className="py-6 text-center border-b border-border">
+          <Link href="/" className="text-xl font-bold tracking-tight text-foreground">
+            CuanPage.
+          </Link>
+          <p className="text-sm text-muted-foreground mt-1">Lacak Pesanan</p>
+        </header>
+        <main className="flex-1 flex items-center justify-center px-6">
+          <div className="text-center max-w-sm">
+            <h1 className="text-xl font-bold text-foreground mb-2">Login diperlukan</h1>
+            <p className="text-muted-foreground mb-6">
+              Silakan login untuk melihat progress pesananmu.
+            </p>
+            <Button asChild className="bg-foreground text-background hover:bg-foreground/90 rounded-full">
+              <Link href="/auth/login">Login</Link>
+            </Button>
+          </div>
+        </main>
+      </div>
+    )
+  }
+
+  // Not found / no access
   if (!order) {
     return (
       <div className="min-h-screen bg-background flex flex-col">
@@ -127,9 +168,7 @@ export default function TrackPage({ params }: { params: Promise<{ orderId: strin
             <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-muted flex items-center justify-center">
               <Search className="h-10 w-10 text-muted-foreground" />
             </div>
-            <h1 className="text-xl font-bold text-foreground mb-2">
-              Pesanan Tidak Ditemukan
-            </h1>
+            <h1 className="text-xl font-bold text-foreground mb-2">Pesanan Tidak Ditemukan</h1>
             <p className="text-muted-foreground mb-6">
               Periksa kembali ID pesanan kamu atau hubungi kami untuk bantuan.
             </p>
@@ -158,23 +197,51 @@ export default function TrackPage({ params }: { params: Promise<{ orderId: strin
           <div className="space-y-3">
             <div className="flex justify-between">
               <span className="text-sm text-muted-foreground">No. Pesanan</span>
-              <span className="text-sm font-medium text-foreground">{order.id}</span>
+              <span className="text-sm font-medium text-foreground">{order.order_number}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-sm text-muted-foreground">Layanan</span>
-              <span className="text-sm font-medium text-foreground">{order.service}</span>
+              <span className="text-sm font-medium text-foreground">{order.service?.nama || "-"}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-sm text-muted-foreground">Tanggal Pesan</span>
-              <span className="text-sm font-medium text-foreground">{order.orderDate}</span>
+              <span className="text-sm font-medium text-foreground">{formatDate(order.created_at)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-sm text-muted-foreground">Estimasi Selesai</span>
-              <span className="text-sm font-medium text-foreground">{order.estimatedCompletion}</span>
+              <span className="text-sm font-medium text-foreground">{order.deadline ? formatDate(order.deadline) : "-"}</span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-sm text-muted-foreground">Dikerjakan oleh</span>
-              <span className="text-sm font-medium text-foreground">{order.assignedTo}</span>
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-muted-foreground">Approval</span>
+              <Badge className={cn("rounded-full", approvalBadge[order.approval_status])} variant="secondary">
+                {approvalLabel[order.approval_status]}
+              </Badge>
+            </div>
+            {order.approval_status === "rejected" && order.rejection_reason && (
+              <div className="flex gap-2 items-start bg-black/5 border border-black/10 rounded-xl p-3">
+                <AlertCircle className="h-4 w-4 mt-0.5 text-black/70" />
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold text-black">Alasan ditolak</p>
+                  <p className="text-xs text-black/70 mt-0.5">{order.rejection_reason}</p>
+                </div>
+              </div>
+            )}
+            {order.approval_status === "approved" && (
+              <div className="flex gap-2 items-start bg-black/5 border border-black/10 rounded-xl p-3">
+                <CheckCircle2 className="h-4 w-4 mt-0.5 text-black/70" />
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold text-black">Pesanan kamu sedang diproses</p>
+                  <p className="text-xs text-black/70 mt-0.5">
+                    {order.status === "pending" ? "Menunggu admin memulai pengerjaan." : "Pantau update terbaru di bawah."}
+                  </p>
+                </div>
+              </div>
+            )}
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-muted-foreground">Status</span>
+              <Badge className={cn("rounded-full", statusBadge[order.status])} variant="secondary">
+                {statusLabels[order.status]}
+              </Badge>
             </div>
           </div>
         </div>
@@ -189,7 +256,7 @@ export default function TrackPage({ params }: { params: Promise<{ orderId: strin
                   {index > 0 && (
                     <div
                       className={`absolute right-1/2 top-1/2 -translate-y-1/2 h-0.5 w-[calc(100%-1rem)] -translate-x-full ${
-                        index <= currentStepIndex ? "bg-indigo-600" : "bg-muted"
+                        index <= currentStepIndex ? "bg-foreground" : "bg-muted"
                       }`}
                       style={{ width: "calc(100vw / 8)" }}
                     />
@@ -198,9 +265,9 @@ export default function TrackPage({ params }: { params: Promise<{ orderId: strin
                   <div
                     className={`relative z-10 w-8 h-8 rounded-full flex items-center justify-center transition-all ${
                       index < currentStepIndex
-                        ? "bg-indigo-600"
+                        ? "bg-foreground"
                         : index === currentStepIndex
-                        ? "bg-indigo-600 ring-4 ring-indigo-200 dark:ring-indigo-900 animate-pulse"
+                        ? "bg-foreground ring-4 ring-muted animate-pulse"
                         : "border-2 border-muted bg-background"
                     }`}
                   >
@@ -218,7 +285,7 @@ export default function TrackPage({ params }: { params: Promise<{ orderId: strin
                       : "text-muted-foreground"
                   }`}
                 >
-                  {step}
+                  {statusLabels[step]}
                 </span>
               </div>
             ))}
@@ -233,14 +300,14 @@ export default function TrackPage({ params }: { params: Promise<{ orderId: strin
           </div>
           <div className="h-3 bg-muted rounded-full overflow-hidden">
             <div
-              className="h-full bg-indigo-600 rounded-full transition-all duration-500"
+              className="h-full bg-foreground rounded-full transition-all duration-500"
               style={{ width: `${order.progress}%` }}
             />
           </div>
         </div>
 
         {/* Completed Banner */}
-        {order.status === "Selesai" && !submitted && (
+        {order.status === "completed" && !submitted && (
           <div className="bg-green-100 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-2xl p-6 mb-8">
             <h3 className="text-lg font-bold text-green-700 dark:text-green-400 text-center mb-4">
               Pesanan Selesai!
@@ -299,17 +366,30 @@ export default function TrackPage({ params }: { params: Promise<{ orderId: strin
         {/* Update Timeline */}
         <div className="mb-8">
           <h3 className="text-lg font-bold text-foreground mb-4">Riwayat Update</h3>
-          <div className="border-l-2 border-indigo-200 dark:border-indigo-800 pl-4 space-y-4">
-            {order.updates.map((update, index) => (
-              <div key={index} className="relative">
-                <div className="absolute -left-[1.35rem] top-1 w-2.5 h-2.5 rounded-full bg-indigo-600" />
-                <p className="text-xs text-muted-foreground">
-                  {update.date} • {update.time}
-                </p>
-                <p className="text-sm text-foreground mt-1">{update.message}</p>
-              </div>
-            ))}
-          </div>
+          {updates.length === 0 ? (
+            <div className="bg-card border border-border rounded-2xl p-6 text-center">
+              <p className="text-sm text-muted-foreground">Belum ada update dari admin.</p>
+            </div>
+          ) : (
+            <div className="border-l-2 border-muted pl-4 space-y-4">
+              {updates.map((u) => (
+                <div key={u.id} className="relative">
+                  <div className="absolute -left-[1.35rem] top-1 w-2.5 h-2.5 rounded-full bg-foreground" />
+                  <div className="flex items-center gap-2">
+                    <p className="text-xs text-muted-foreground">{formatDate(u.created_at)}</p>
+                    <Badge className={cn("rounded-full", statusBadge[order.status])} variant="secondary">
+                      {statusLabels[order.status]}
+                    </Badge>
+                    <div className="ml-auto flex items-center gap-1 text-muted-foreground">
+                      <EyeIcon className="h-3 w-3" />
+                      <span className="text-[11px]">Update dari admin</span>
+                    </div>
+                  </div>
+                  <p className="text-sm text-foreground mt-1">{u.message}</p>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* WhatsApp Button */}

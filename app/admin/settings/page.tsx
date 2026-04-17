@@ -80,7 +80,7 @@ export default function SettingsPage() {
               {/* Logo Upload */}
               <div className="flex items-center gap-6">
                 <Avatar className="h-24 w-24">
-                  <AvatarFallback className="text-2xl bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400">
+                  <AvatarFallback className="text-2xl bg-black/5 text-black">
                     CP
                   </AvatarFallback>
                 </Avatar>
@@ -141,7 +141,7 @@ export default function SettingsPage() {
                 />
               </div>
 
-              <Button className="bg-indigo-600 hover:bg-indigo-700 text-white">
+              <Button className="bg-[#BEFF47] hover:bg-[#BEFF47]/90 text-black">
                 <Save className="h-4 w-4 mr-2" />
                 Simpan Perubahan
               </Button>
@@ -196,7 +196,7 @@ export default function SettingsPage() {
                 </p>
               </div>
 
-              <Button className="bg-indigo-600 hover:bg-indigo-700 text-white">
+              <Button className="bg-[#BEFF47] hover:bg-[#BEFF47]/90 text-black">
                 <Save className="h-4 w-4 mr-2" />
                 Simpan Perubahan
               </Button>
@@ -276,7 +276,7 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              <Button className="bg-indigo-600 hover:bg-indigo-700 text-white">
+              <Button className="bg-[#BEFF47] hover:bg-[#BEFF47]/90 text-black">
                 <Save className="h-4 w-4 mr-2" />
                 Simpan Perubahan
               </Button>
@@ -324,7 +324,7 @@ export default function SettingsPage() {
                 />
               </div>
 
-              <Button className="bg-indigo-600 hover:bg-indigo-700 text-white">
+              <Button className="bg-[#BEFF47] hover:bg-[#BEFF47]/90 text-black">
                 <Save className="h-4 w-4 mr-2" />
                 Ubah Password
               </Button>

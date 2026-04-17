@@ -34,6 +34,10 @@ export interface Order {
   price: number
   deadline: string | null
   internal_notes: string | null
+  approval_status: "pending_approval" | "approved" | "rejected"
+  approved_at: string | null
+  approved_by: string | null
+  rejection_reason: string | null
   created_at: string
   updated_at: string
   // Joined data
@@ -252,6 +256,21 @@ export async function getOrderById(id: string) {
   return data as Order
 }
 
+export async function getOrderByOrderNumber(orderNumber: string) {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from("orders")
+    .select(`
+      *,
+      customer:profiles!orders_customer_id_fkey(*),
+      service:services(*)
+    `)
+    .eq("order_number", orderNumber)
+    .single()
+  if (error) throw error
+  return data as Order
+}
+
 export async function createOrder(order: {
   customer_id: string
   service_id: string
@@ -283,7 +302,7 @@ export async function updateOrder(id: string, updates: Partial<Order>) {
   if (updates.status) {
     const { data: existing, error: existingError } = await supabase
       .from("orders")
-      .select("status")
+      .select("status, approval_status")
       .eq("id", id)
       .single()
 
@@ -295,6 +314,10 @@ export async function updateOrder(id: string, updates: Partial<Order>) {
 
     if (currentStatus !== nextStatus && !allowedNext.includes(nextStatus)) {
       throw new Error(`Invalid order status transition: ${currentStatus} -> ${nextStatus}`)
+    }
+
+    if (nextStatus === "in_progress" && existing.approval_status !== "approved") {
+      throw new Error("Order harus di-approve sebelum bisa mulai dikerjakan.")
     }
   }
 
@@ -310,13 +333,18 @@ export async function updateOrder(id: string, updates: Partial<Order>) {
 
 // ============ ORDER UPDATES ============
 
-export async function getOrderUpdates(orderId: string) {
+export async function getOrderUpdates(orderId: string, opts?: { visibleOnly?: boolean }) {
   const supabase = createClient()
-  const { data, error } = await supabase
+  let query = supabase
     .from("order_updates")
     .select("*")
     .eq("order_id", orderId)
-    .order("created_at", { ascending: false })
+
+  if (opts?.visibleOnly) {
+    query = query.eq("is_customer_visible", true)
+  }
+
+  const { data, error } = await query.order("created_at", { ascending: false })
   if (error) throw error
   return data as OrderUpdate[]
 }
@@ -334,6 +362,42 @@ export async function createOrderUpdate(update: {
     .single()
   if (error) throw error
   return data as OrderUpdate
+}
+
+// ============ ORDER APPROVAL ============
+
+export async function approveOrder(orderId: string, adminId: string) {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from("orders")
+    .update({
+      approval_status: "approved",
+      approved_at: new Date().toISOString(),
+      approved_by: adminId,
+      rejection_reason: null,
+    })
+    .eq("id", orderId)
+    .select()
+    .single()
+  if (error) throw error
+  return data as Order
+}
+
+export async function rejectOrder(orderId: string, adminId: string, reason: string) {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from("orders")
+    .update({
+      approval_status: "rejected",
+      approved_at: null,
+      approved_by: adminId,
+      rejection_reason: reason,
+    })
+    .eq("id", orderId)
+    .select()
+    .single()
+  if (error) throw error
+  return data as Order
 }
 
 // ============ INVOICES ============

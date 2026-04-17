@@ -52,12 +52,12 @@ const orderStatusLabels: Record<string, string> = {
 }
 
 const statusColors: Record<string, string> = {
-  pending: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
-  in_progress: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
-  review: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400",
-  revision: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400",
-  completed: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
-  cancelled: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
+  pending: "bg-black/5 text-black border border-black/10",
+  in_progress: "bg-[#BEFF47] text-black border border-black/10",
+  review: "bg-black/5 text-black border border-black/10",
+  revision: "bg-black/5 text-black border border-black/10",
+  completed: "bg-black/5 text-black border border-black/10",
+  cancelled: "bg-black/5 text-black border border-black/10",
 }
 
 function TableSkeleton() {
@@ -148,8 +148,8 @@ export default function AdminDashboardPage() {
                       <p className="text-2xl font-bold text-foreground mt-1">{stat.value}</p>
                     )}
                   </div>
-                  <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg">
-                    <Icon className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+                  <div className="p-2 bg-black/5 rounded-lg">
+                    <Icon className="h-5 w-5 text-black" />
                   </div>
                 </div>
               </CardContent>
@@ -160,7 +160,7 @@ export default function AdminDashboardPage() {
 
       {/* Quick Actions */}
       <div className="flex flex-wrap gap-3 mb-8">
-        <Button className="bg-indigo-600 hover:bg-indigo-700 text-white" asChild>
+        <Button className="bg-[#BEFF47] hover:bg-[#BEFF47]/90 text-black" asChild>
           <Link href="/admin/orders">
             <Plus className="h-4 w-4 mr-2" />
             Pesanan Baru
@@ -262,7 +262,7 @@ export default function AdminDashboardPage() {
                       borderRadius: "8px",
                     }}
                   />
-                  <Bar dataKey="revenue" fill="#6366F1" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="revenue" fill="#000000" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             )}

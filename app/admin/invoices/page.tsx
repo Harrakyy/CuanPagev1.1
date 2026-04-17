@@ -27,10 +27,10 @@ const invoiceStatusLabels: Record<string, string> = {
 }
 
 const statusColors: Record<string, string> = {
-  unpaid: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
-  paid: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
-  partial: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
-  overdue: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
+  unpaid: "bg-black/5 text-black border border-black/10",
+  paid: "bg-black/5 text-black border border-black/10",
+  partial: "bg-black/5 text-black border border-black/10",
+  overdue: "bg-[#BEFF47] text-black border border-black/10",
 }
 
 function TableSkeleton() {
@@ -91,7 +91,7 @@ export default function InvoicesPage() {
           <h1 className="text-2xl font-bold text-foreground">Invoice</h1>
           <p className="text-muted-foreground">Kelola invoice pelanggan</p>
         </div>
-        <Button className="bg-indigo-600 hover:bg-indigo-700 text-white" asChild>
+        <Button className="bg-[#BEFF47] hover:bg-[#BEFF47]/90 text-black" asChild>
           <Link href="/admin/invoices/new">
             <Plus className="h-4 w-4 mr-2" />
             Buat Invoice
@@ -104,8 +104,8 @@ export default function InvoicesPage() {
         <Card className="bg-card border rounded-xl">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg">
-                <FileText className="h-5 w-5 text-yellow-600" />
+              <div className="p-2 bg-black/5 rounded-lg">
+                <FileText className="h-5 w-5 text-black" />
               </div>
               <div>
                 {isLoading ? (
@@ -121,8 +121,8 @@ export default function InvoicesPage() {
         <Card className="bg-card border rounded-xl">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-lg">
-                <FileText className="h-5 w-5 text-red-600" />
+              <div className="p-2 bg-black/5 rounded-lg">
+                <FileText className="h-5 w-5 text-black" />
               </div>
               <div>
                 {isLoading ? (
@@ -138,8 +138,8 @@ export default function InvoicesPage() {
         <Card className="bg-card border rounded-xl">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg">
-                <FileText className="h-5 w-5 text-indigo-600" />
+              <div className="p-2 bg-black/5 rounded-lg">
+                <FileText className="h-5 w-5 text-black" />
               </div>
               <div>
                 {isLoading ? (

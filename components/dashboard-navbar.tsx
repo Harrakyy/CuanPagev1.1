@@ -5,12 +5,13 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
   Moon, Sun, LogOut, ChevronDown,
-  LayoutDashboard, ShoppingBag, FileText, MessageSquare, Sparkles,
+  LayoutDashboard, ShoppingBag, FileText, MessageSquare, Sparkles, Bell,
 } from "lucide-react"
 import { useTheme } from "next-themes"
 import { useAuth } from "@/contexts/auth-context"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Badge } from "@/components/ui/badge"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,6 +20,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
+import { getUnreadNotificationsCount } from "@/lib/supabase/queries"
 
 const navLinks = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -32,9 +34,27 @@ export function DashboardNavbar() {
   const { setTheme, theme } = useTheme()
   const { user, logout } = useAuth()
   const pathname = usePathname()
+  const [unreadCount, setUnreadCount] = React.useState<number>(0)
 
   const getInitials = (name: string) =>
     name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
+
+  React.useEffect(() => {
+    let cancelled = false
+    async function load() {
+      if (!user) return
+      try {
+        const count = await getUnreadNotificationsCount(user.id)
+        if (!cancelled) setUnreadCount(count)
+      } catch {
+        // silent
+      }
+    }
+    load()
+    return () => {
+      cancelled = true
+    }
+  }, [user])
 
   return (
     <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
@@ -74,6 +94,21 @@ export function DashboardNavbar() {
 
         {/* Right Side */}
         <div className="flex items-center gap-2">
+          {/* Notifications */}
+          <Button variant="ghost" size="icon" className="relative" asChild>
+            <Link href="/dashboard/notifications" aria-label="Notifications">
+              <Bell className="h-4 w-4" />
+              {unreadCount > 0 && (
+                <Badge
+                  variant="secondary"
+                  className="absolute -top-1 -right-1 h-5 min-w-5 px-1 rounded-full text-[10px] leading-none bg-foreground text-background flex items-center justify-center"
+                >
+                  {unreadCount > 99 ? "99+" : unreadCount}
+                </Badge>
+              )}
+            </Link>
+          </Button>
+
           {/* Dark Mode Toggle */}
           <Button
             variant="ghost"
@@ -106,6 +141,17 @@ export function DashboardNavbar() {
                 <p className="text-sm font-medium truncate">{user?.name}</p>
                 <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
               </div>
+              <DropdownMenuItem asChild>
+                <Link href="/dashboard/notifications" className="flex items-center gap-2 cursor-pointer">
+                  <Bell className="h-4 w-4" />
+                  Notifikasi
+                  {unreadCount > 0 && (
+                    <span className="ml-auto text-[11px] font-semibold tabular-nums">
+                      {unreadCount > 99 ? "99+" : unreadCount}
+                    </span>
+                  )}
+                </Link>
+              </DropdownMenuItem>
               {/* Mobile nav links in dropdown */}
               <div className="md:hidden">
                 {navLinks.map(({ href, label, icon: Icon }) => (

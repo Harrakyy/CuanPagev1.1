@@ -40,9 +40,9 @@ const methodIcons: Record<string, React.ReactNode> = {
 }
 
 const methodColors: Record<string, string> = {
-  Transfer: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
-  QRIS: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400",
-  Tunai: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
+  Transfer: "bg-black/5 text-black border border-black/10",
+  QRIS: "bg-black/5 text-black border border-black/10",
+  Tunai: "bg-black/5 text-black border border-black/10",
 }
 
 function TableSkeleton() {
@@ -176,7 +176,7 @@ export default function PaymentsPage() {
         </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button className="bg-indigo-600 hover:bg-indigo-700 text-white">
+            <Button className="bg-[#BEFF47] hover:bg-[#BEFF47]/90 text-black">
               <Plus className="h-4 w-4 mr-2" />
               Catat Pembayaran
             </Button>
@@ -268,7 +268,7 @@ export default function PaymentsPage() {
                 Batal
               </Button>
               <Button
-                className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                className="bg-[#BEFF47] hover:bg-[#BEFF47]/90 text-black"
                 onClick={handleSavePayment}
                 disabled={isSaving}
               >
@@ -299,12 +299,12 @@ export default function PaymentsPage() {
                       <p className="text-sm text-muted-foreground">
                         {item.customerName}
                       </p>
-                      <p className="text-xl font-bold text-red-600">
+                      <p className="text-xl font-bold text-black">
                         {formatRupiah(item.balance)}
                       </p>
                     </div>
-                    <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-lg">
-                      <DollarSign className="h-5 w-5 text-red-600" />
+                    <div className="p-2 bg-black/5 rounded-lg">
+                      <DollarSign className="h-5 w-5 text-black" />
                     </div>
                   </div>
                 </CardContent>

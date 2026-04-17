@@ -17,18 +17,30 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { ArrowLeft, Lock, Eye, Copy, Check, Send, Clock, Loader2 } from "lucide-react"
+import { ArrowLeft, Lock, Eye, Copy, Check, Send, Clock, Loader2, CheckCircle2, XCircle } from "lucide-react"
 import { toast } from "sonner"
+import { useAuth } from "@/contexts/auth-context"
 import {
   getOrderById,
   getOrderUpdates,
   updateOrder,
   createOrderUpdate,
+  approveOrder,
+  rejectOrder,
   formatDate,
   formatRupiah,
   type Order,
   type OrderUpdate,
 } from "@/lib/supabase/queries"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 
 const statusColors: Record<Order["status"], string> = {
   pending: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
@@ -95,6 +107,7 @@ function DetailSkeleton() {
 export default function OrderDetailPage() {
   const params = useParams()
   const orderId = params.id as string
+  const { user } = useAuth()
 
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
@@ -107,6 +120,9 @@ export default function OrderDetailPage() {
   const [internalNote, setInternalNote] = useState("")
   const [customerUpdate, setCustomerUpdate] = useState("")
   const [copied, setCopied] = useState(false)
+  const [isApproving, setIsApproving] = useState(false)
+  const [isRejecting, setIsRejecting] = useState(false)
+  const [rejectReason, setRejectReason] = useState("")
 
   useEffect(() => {
     async function loadData() {
@@ -147,6 +163,39 @@ export default function OrderDetailPage() {
       toast.error("Gagal menyimpan perubahan")
     } finally {
       setIsSaving(false)
+    }
+  }
+
+  const handleApprove = async () => {
+    if (!user) return
+    setIsApproving(true)
+    try {
+      const updated = await approveOrder(orderId, user.id)
+      setOrder((prev) => prev ? { ...prev, ...updated } : prev)
+      toast.success("Pesanan di-approve")
+    } catch {
+      toast.error("Gagal approve pesanan")
+    } finally {
+      setIsApproving(false)
+    }
+  }
+
+  const handleReject = async () => {
+    if (!user) return
+    if (!rejectReason.trim()) {
+      toast.error("Alasan reject wajib diisi")
+      return
+    }
+    setIsRejecting(true)
+    try {
+      const updated = await rejectOrder(orderId, user.id, rejectReason.trim())
+      setOrder((prev) => prev ? { ...prev, ...updated } : prev)
+      toast.success("Pesanan di-reject")
+      setRejectReason("")
+    } catch {
+      toast.error("Gagal reject pesanan")
+    } finally {
+      setIsRejecting(false)
     }
   }
 
@@ -289,9 +338,100 @@ export default function OrderDetailPage() {
                     {statusLabels[order.status]}
                   </Badge>
                 </div>
+                <div className="col-span-2">
+                  <p className="text-sm text-muted-foreground">Approval</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Badge
+                      variant="secondary"
+                      className={
+                        order.approval_status === "approved"
+                          ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
+                          : order.approval_status === "rejected"
+                          ? "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
+                          : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400"
+                      }
+                    >
+                      {order.approval_status === "approved"
+                        ? "Approved"
+                        : order.approval_status === "rejected"
+                        ? "Rejected"
+                        : "Pending Approval"}
+                    </Badge>
+                    {order.approval_status === "approved" && order.approved_at && (
+                      <span className="text-xs text-muted-foreground">
+                        {formatDate(order.approved_at)}
+                      </span>
+                    )}
+                  </div>
+                  {order.approval_status === "rejected" && order.rejection_reason && (
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Alasan: <span className="text-foreground">{order.rejection_reason}</span>
+                    </p>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>
+
+          {/* Approval Actions */}
+          {order.approval_status === "pending_approval" && (
+            <Card className="bg-card border rounded-xl">
+              <CardHeader>
+                <CardTitle className="text-lg">Approval Pesanan</CardTitle>
+              </CardHeader>
+              <CardContent className="flex flex-col sm:flex-row gap-2">
+                <Button
+                  className="flex-1 bg-foreground text-background hover:bg-foreground/90 gap-2"
+                  onClick={handleApprove}
+                  disabled={isApproving}
+                >
+                  <CheckCircle2 className="h-4 w-4" />
+                  {isApproving ? "Memproses..." : "Approve"}
+                </Button>
+
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" className="flex-1 gap-2">
+                      <XCircle className="h-4 w-4" />
+                      Reject
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                      <DialogTitle>Reject Pesanan</DialogTitle>
+                      <DialogDescription>
+                        Beri alasan singkat agar customer paham apa yang perlu diperbaiki.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-2">
+                      <Textarea
+                        value={rejectReason}
+                        onChange={(e) => setRejectReason(e.target.value)}
+                        placeholder="Contoh: Brief belum lengkap, mohon sertakan referensi desain dan struktur halaman."
+                        rows={4}
+                      />
+                    </div>
+                    <DialogFooter className="gap-2">
+                      <Button
+                        variant="outline"
+                        onClick={() => setRejectReason("")}
+                        disabled={isRejecting}
+                      >
+                        Batal
+                      </Button>
+                      <Button
+                        className="bg-foreground text-background hover:bg-foreground/90"
+                        onClick={handleReject}
+                        disabled={isRejecting}
+                      >
+                        {isRejecting ? "Memproses..." : "Reject"}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Status & Progress */}
           <Card className="bg-card border rounded-xl">
