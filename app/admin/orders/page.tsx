@@ -113,23 +113,24 @@ export default function OrdersPage() {
   })
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-8">
-        <div>
+    <div className="p-4 sm:p-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6 sm:mb-8">
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold text-foreground">Pesanan</h1>
           <p className="text-muted-foreground">Kelola semua pesanan pelanggan</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
           <Button
             variant="outline"
             size="sm"
             onClick={() => loadOrders(true)}
             disabled={isRefreshing}
+            className="w-full sm:w-auto"
           >
             <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
             Refresh
           </Button>
-          <Button className="bg-indigo-600 hover:bg-indigo-700 text-white">
+          <Button className="bg-indigo-600 hover:bg-indigo-700 text-white w-full sm:w-auto">
             <Plus className="h-4 w-4 mr-2" />
             Pesanan Baru
           </Button>
@@ -138,8 +139,8 @@ export default function OrdersPage() {
 
       <Card className="bg-card border rounded-xl">
         <CardHeader>
-          <div className="flex flex-col md:flex-row md:items-center gap-4">
-            <div className="relative flex-1 max-w-sm">
+          <div className="flex flex-col md:flex-row md:items-center gap-4 min-w-0">
+            <div className="relative flex-1 w-full md:max-w-sm min-w-0">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Cari pesanan..."
@@ -148,8 +149,8 @@ export default function OrdersPage() {
                 className="pl-10"
               />
             </div>
-            <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="flex-wrap h-auto">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="min-w-0">
+              <TabsList className="flex-wrap h-auto justify-start">
                 {statusTabs.map((tab) => (
                   <TabsTrigger key={tab.value} value={tab.value}>
                     {tab.label}

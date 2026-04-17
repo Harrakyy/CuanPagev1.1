@@ -4,12 +4,19 @@ import * as React from "react"
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/contexts/auth-context"
-import { AdminSidebar } from "@/components/admin-sidebar"
+import { AdminSidebar, AdminSidebarSheetContent } from "@/components/admin-sidebar"
 import { AdminNotifications } from "@/components/admin-notifications"
 import { Button } from "@/components/ui/button"
-import { Moon, Sun } from "lucide-react"
+import { Moon, Sun, Menu } from "lucide-react"
 import { useTheme } from "next-themes"
 import { Toaster } from "sonner"
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet"
 
 export default function AdminLayout({
   children,
@@ -19,6 +26,7 @@ export default function AdminLayout({
   const { user, isLoading } = useAuth()
   const router = useRouter()
   const { theme, setTheme } = useTheme()
+  const [sidebarOpen, setSidebarOpen] = React.useState(false)
 
   useEffect(() => {
     if (!isLoading) {
@@ -47,7 +55,23 @@ export default function AdminLayout({
       <AdminSidebar />
       
       {/* Top header bar */}
-      <header className="fixed top-0 left-64 right-0 z-30 h-16 bg-background border-b border-border flex items-center justify-end gap-2 px-6">
+      <header className="fixed top-0 left-0 md:left-64 right-0 z-30 h-16 bg-background border-b border-border flex items-center justify-between md:justify-end gap-2 px-4 md:px-6">
+        <div className="md:hidden">
+          <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon" aria-label="Open admin menu">
+                <Menu className="h-5 w-5" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="w-80 p-0">
+              <SheetHeader className="sr-only">
+                <SheetTitle>Admin Menu</SheetTitle>
+              </SheetHeader>
+              <AdminSidebarSheetContent />
+            </SheetContent>
+          </Sheet>
+        </div>
+
         <Button
           variant="ghost"
           size="icon"
@@ -60,7 +84,7 @@ export default function AdminLayout({
         <AdminNotifications />
       </header>
 
-      <main className="ml-64 pt-16 min-h-screen">
+      <main className="ml-0 md:ml-64 pt-16 min-h-screen min-w-0">
         {children}
       </main>
 

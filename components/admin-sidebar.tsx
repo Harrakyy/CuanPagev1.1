@@ -39,7 +39,7 @@ const badgeCounts = {
   messages: 2,
 }
 
-export function AdminSidebar() {
+function AdminSidebarInner() {
   const pathname = usePathname()
   const router = useRouter()
   const { user, logout } = useAuth()
@@ -57,7 +57,7 @@ export function AdminSidebar() {
   }
 
   return (
-    <aside className="fixed left-0 top-0 z-40 h-screen w-64 bg-slate-900 text-slate-100 flex flex-col">
+    <>
       {/* Logo */}
       <div className="p-6 border-b border-slate-800">
         <div className="flex items-center gap-3">
@@ -122,6 +122,27 @@ export function AdminSidebar() {
           Keluar
         </Button>
       </div>
+    </>
+  )
+}
+
+export function AdminSidebar({ className }: { className?: string }) {
+  return (
+    <aside
+      className={cn(
+        "fixed left-0 top-0 z-40 h-screen w-64 bg-slate-900 text-slate-100 hidden md:flex flex-col",
+        className
+      )}
+    >
+      <AdminSidebarInner />
     </aside>
+  )
+}
+
+export function AdminSidebarSheetContent({ className }: { className?: string }) {
+  return (
+    <div className={cn("h-full w-full bg-slate-900 text-slate-100 flex flex-col", className)}>
+      <AdminSidebarInner />
+    </div>
   )
 }
