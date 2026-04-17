@@ -82,7 +82,7 @@ export default function InvoicesPage() {
   const totalOverdue = invoices.filter(i => i.status === "overdue").length
   const totalAmount = invoices
     .filter(i => i.status !== "paid")
-    .reduce((acc, i) => acc + (i.total - (i.paid_amount || 0)), 0)
+    .reduce((acc, i) => acc + i.total, 0)
 
   return (
     <div className="p-6">
