@@ -78,7 +78,7 @@ export function HeroSection() {
         </motion.span>
         
         <motion.h1
-          className="text-5xl md:text-7xl lg:text-8xl font-black text-center leading-[1.05] tracking-tight max-w-4xl mx-auto text-foreground text-balance"
+          className="text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-black text-center leading-[1.08] sm:leading-[1.05] tracking-tight max-w-4xl mx-auto text-foreground text-balance"
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2, duration: 0.6 }}
@@ -87,7 +87,7 @@ export function HeroSection() {
         </motion.h1>
         
         <motion.p
-          className="text-muted-foreground text-center mt-6 text-lg max-w-xl mx-auto"
+          className="text-muted-foreground text-center mt-6 text-base sm:text-lg max-w-xl mx-auto"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4, duration: 0.5 }}
@@ -101,12 +101,12 @@ export function HeroSection() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.6, duration: 0.5 }}
         >
-          <Button className="rounded-full px-8 py-3 h-auto font-medium bg-foreground text-background hover:bg-foreground/90 transition-colors duration-300">
+          <Button className="w-full sm:w-auto rounded-full px-8 py-3 h-auto font-medium bg-foreground text-background hover:bg-foreground/90 transition-colors duration-300">
             {"Mulai Project →"}
           </Button>
           <Button
             variant="outline"
-            className="rounded-full px-8 py-3 h-auto font-medium border-border hover:border-foreground/20 transition-colors duration-300"
+            className="w-full sm:w-auto rounded-full px-8 py-3 h-auto font-medium border-border hover:border-foreground/20 transition-colors duration-300"
           >
             Lihat Portfolio
           </Button>
