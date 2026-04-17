@@ -58,10 +58,10 @@ export default function ServicesPage() {
   
   // Form state
   const [formData, setFormData] = useState({
-    name: "",
-    description: "",
-    price: 0,
-    estimated_days: 7,
+    nama: "",
+    deskripsi: "",
+    harga: 0,
+    estimasi: "7",
     max_slots: 10,
     is_active: true,
   })
@@ -84,10 +84,10 @@ export default function ServicesPage() {
   const handleEdit = (service: Service) => {
     setEditingService(service)
     setFormData({
-      name: service.name,
-      description: service.description || "",
-      price: service.price,
-      estimated_days: service.estimated_days,
+      nama: service.nama,
+      deskripsi: service.deskripsi || "",
+      harga: service.harga,
+      estimasi: service.estimasi || "7",
       max_slots: service.max_slots,
       is_active: service.is_active,
     })
@@ -97,10 +97,10 @@ export default function ServicesPage() {
   const handleAddNew = () => {
     setEditingService(null)
     setFormData({
-      name: "",
-      description: "",
-      price: 0,
-      estimated_days: 7,
+      nama: "",
+      deskripsi: "",
+      harga: 0,
+      estimasi: "7",
       max_slots: 10,
       is_active: true,
     })
@@ -116,7 +116,7 @@ export default function ServicesPage() {
       } else {
         await createService({
           ...formData,
-          filled_slots: 0,
+          current_slots: 0,
         })
         toast.success("Layanan baru berhasil ditambahkan")
       }
@@ -189,7 +189,7 @@ export default function ServicesPage() {
                 {isLoading ? (
                   <Skeleton className="h-8 w-12" />
                 ) : (
-                  <p className="text-2xl font-bold">{services.filter(s => s.filled_slots >= s.max_slots).length}</p>
+                  <p className="text-2xl font-bold">{services.filter(s => s.current_slots >= s.max_slots).length}</p>
                 )}
                 <p className="text-sm text-muted-foreground">Slot Penuh</p>
               </div>
@@ -225,14 +225,14 @@ export default function ServicesPage() {
               <TableBody>
                 {services.map((service) => (
                   <TableRow key={service.id}>
-                    <TableCell className="font-medium">{service.name}</TableCell>
-                    <TableCell>{formatRupiah(service.price)}</TableCell>
-                    <TableCell>{service.estimated_days > 0 ? `${service.estimated_days} hari` : "Bulanan"}</TableCell>
+                    <TableCell className="font-medium">{service.nama}</TableCell>
+                    <TableCell>{formatRupiah(service.harga)}</TableCell>
+                    <TableCell>{service.estimasi !== "0" ? `${service.estimasi} hari` : "Bulanan"}</TableCell>
                     <TableCell>{service.max_slots}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <span>{service.filled_slots}</span>
-                        {service.filled_slots >= service.max_slots && (
+                        <span>{service.current_slots}</span>
+                        {service.current_slots >= service.max_slots && (
                           <Badge className="bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400" variant="secondary">
                             Full
                           </Badge>
@@ -283,8 +283,8 @@ export default function ServicesPage() {
               <Label>Nama Layanan</Label>
               <Input
                 placeholder="Contoh: Landing Page"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                value={formData.nama}
+                onChange={(e) => setFormData({ ...formData, nama: e.target.value })}
                 className="mt-1"
               />
             </div>
@@ -292,8 +292,8 @@ export default function ServicesPage() {
               <Label>Deskripsi</Label>
               <Textarea
                 placeholder="Deskripsi singkat layanan..."
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                value={formData.deskripsi}
+                onChange={(e) => setFormData({ ...formData, deskripsi: e.target.value })}
                 className="mt-1"
                 rows={3}
               />
@@ -304,8 +304,8 @@ export default function ServicesPage() {
                 <Input
                   type="number"
                   placeholder="0"
-                  value={formData.price}
-                  onChange={(e) => setFormData({ ...formData, price: Number(e.target.value) })}
+                  value={formData.harga}
+                  onChange={(e) => setFormData({ ...formData, harga: Number(e.target.value) })}
                   className="mt-1"
                 />
               </div>
@@ -314,8 +314,8 @@ export default function ServicesPage() {
                 <Input
                   type="number"
                   placeholder="7"
-                  value={formData.estimated_days}
-                  onChange={(e) => setFormData({ ...formData, estimated_days: Number(e.target.value) })}
+                  value={formData.estimasi}
+                  onChange={(e) => setFormData({ ...formData, estimasi: e.target.value })}
                   className="mt-1"
                 />
               </div>
@@ -345,7 +345,7 @@ export default function ServicesPage() {
             <Button
               className="bg-indigo-600 hover:bg-indigo-700 text-white"
               onClick={handleSave}
-              disabled={isSaving || !formData.name}
+              disabled={isSaving || !formData.nama}
             >
               {isSaving ? <><Spinner className="mr-2" />Menyimpan...</> : editingService ? "Simpan Perubahan" : "Tambah Layanan"}
             </Button>
