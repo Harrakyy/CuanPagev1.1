@@ -81,14 +81,14 @@ export default function AdminDashboardPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [orders, setOrders] = useState<Order[]>([])
   const [stats, setStats] = useState({
-    totalOrders: 0,
-    activeOrders: 0,
-    completedOrders: 0,
-    totalRevenue: 0,
-    pendingRevenue: 0,
-    unreadMessages: 0,
-    overdueInvoices: 0,
-  })
+      totalOrders: 0,
+      activeOrders: 0,
+      completedOrders: 0,
+      totalRevenue: 0,
+      unpaidInvoices: 0,
+      unreadMessages: 0,
+      overdueInvoices: 0,
+    })
   const [totalCustomers, setTotalCustomers] = useState(0)
   const [chartData, setChartData] = useState<{ month: string; revenue: number }[]>([])
 
@@ -213,7 +213,7 @@ export default function AdminDashboardPage() {
                     <TableRow key={order.id}>
                       <TableCell className="font-medium">{order.order_number}</TableCell>
                       <TableCell>{order.customer?.full_name || "-"}</TableCell>
-                      <TableCell>{order.service?.name || "-"}</TableCell>
+                      <TableCell>{order.service?.nama || "-"}</TableCell>
                       <TableCell>
                         <Badge className={statusColors[order.status]} variant="secondary">
                           {orderStatusLabels[order.status]}

@@ -341,7 +341,7 @@ export default function DashboardPage() {
                             {order.order_number}
                           </TableCell>
                           <TableCell className="text-sm font-medium text-foreground">
-                            {order.service?.name || "–"}
+                            {order.service?.nama || "–"}
                           </TableCell>
                           <TableCell className="text-xs text-muted-foreground">
                             {formatDate(order.created_at)}
@@ -399,7 +399,7 @@ export default function DashboardPage() {
                             {order.order_number}
                           </span>
                           <p className="text-sm font-semibold text-foreground mt-0.5 truncate">
-                            {order.service?.name || "–"}
+                            {order.service?.nama || "–"}
                           </p>
                         </div>
                         <span
