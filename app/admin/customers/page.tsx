@@ -62,7 +62,9 @@ export default function CustomersPage() {
         const customersWithStats = customersData.map((customer) => {
           const customerOrders = ordersData.filter(o => o.customer_id === customer.id)
           const customerInvoices = invoicesData.filter(i => i.customer_id === customer.id)
-          const totalSpent = customerInvoices.reduce((sum, inv) => sum + (inv.paid_amount || 0), 0)
+          const totalSpent = customerInvoices
+  .filter(inv => inv.status === "paid")
+  .reduce((sum, inv) => sum + (inv.total || 0), 0)
           
           return {
             ...customer,
