@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -32,14 +32,7 @@ import {
   Download,
   FileText,
 } from "lucide-react"
-
-// Mock customers
-const customers = [
-  { id: "CUS-001", name: "Ahmad Rizki" },
-  { id: "CUS-002", name: "Siti Nurhaliza" },
-  { id: "CUS-003", name: "Budi Santoso" },
-  { id: "CUS-004", name: "Dewi Lestari" },
-]
+import { getCustomers, type Profile } from "@/lib/supabase/queries"
 
 interface LineItem {
   id: number
@@ -49,6 +42,7 @@ interface LineItem {
 }
 
 export default function NewInvoicePage() {
+  const [customers, setCustomers] = useState<Profile[]>([])
   const [selectedCustomer, setSelectedCustomer] = useState("")
   const [dueDate, setDueDate] = useState("")
   const [taxRate, setTaxRate] = useState(11)
@@ -58,6 +52,18 @@ export default function NewInvoicePage() {
   ])
 
   const invoiceNumber = "CP-2024-009" // Would be auto-generated
+
+  useEffect(() => {
+    async function loadCustomers() {
+      try {
+        const data = await getCustomers()
+        setCustomers(data)
+      } catch (error) {
+        console.error("Error loading customers:", error)
+      }
+    }
+    loadCustomers()
+  }, [])
 
   const addLineItem = () => {
     setLineItems([
@@ -123,11 +129,17 @@ export default function NewInvoicePage() {
                     <SelectValue placeholder="Pilih pelanggan..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {customers.map((customer) => (
-                      <SelectItem key={customer.id} value={customer.id}>
-                        {customer.name}
+                    {customers.length === 0 ? (
+                      <SelectItem value="empty" disabled>
+                        Belum ada pelanggan
                       </SelectItem>
-                    ))}
+                    ) : (
+                      customers.map((customer) => (
+                        <SelectItem key={customer.id} value={customer.id}>
+                          {customer.full_name || customer.email}
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -301,7 +313,7 @@ export default function NewInvoicePage() {
                 <div>
                   <p className="text-sm text-muted-foreground mb-1">Kepada:</p>
                   <p className="font-medium">
-                    {selectedCustomerData?.name || "Pilih pelanggan"}
+                    {selectedCustomerData?.full_name || selectedCustomerData?.email || "Pilih pelanggan"}
                   </p>
                 </div>
                 <div className="text-right">

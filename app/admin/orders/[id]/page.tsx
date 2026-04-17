@@ -17,18 +17,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import {
-  ArrowLeft,
-  Lock,
-  Eye,
-  Copy,
-  Check,
-  Send,
-  Clock,
-  Loader2,
-} from "lucide-react"
+import { ArrowLeft, Lock, Eye, Copy, Check, Send, Clock, Loader2 } from "lucide-react"
 import { toast } from "sonner"
-import { orders, customers, orderStatusLabels, formatDate, formatRupiah, type Order } from "@/lib/dummy-data"
+import {
+  getOrderById,
+  getOrderUpdates,
+  updateOrder,
+  createOrderUpdate,
+  formatDate,
+  formatRupiah,
+  type Order,
+  type OrderUpdate,
+} from "@/lib/supabase/queries"
 
 const statusColors: Record<Order["status"], string> = {
   pending: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
@@ -39,13 +39,17 @@ const statusColors: Record<Order["status"], string> = {
   cancelled: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
 }
 
-const statusOptions: Order["status"][] = ["pending", "in_progress", "review", "revision", "completed", "cancelled"]
+const statusLabels: Record<Order["status"], string> = {
+  pending: "Menunggu",
+  in_progress: "Dikerjakan",
+  review: "Review",
+  revision: "Revisi",
+  completed: "Selesai",
+  cancelled: "Dibatalkan",
+}
 
-const mockTimeline = [
-  { date: "2024-05-28 14:30", type: "update", message: "Revisi halaman About sesuai feedback. Tinggal finishing section contact.", visible: true },
-  { date: "2024-05-25 10:00", type: "update", message: "Homepage sudah selesai 80%. Menunggu konten dari client untuk halaman About.", visible: true },
-  { date: "2024-05-20 09:15", type: "status", message: "Status diubah menjadi Dikerjakan", visible: true },
-  { date: "2024-05-15 16:00", type: "status", message: "Pesanan dibuat", visible: true },
+const statusOptions: Order["status"][] = [
+  "pending", "in_progress", "review", "revision", "completed", "cancelled",
 ]
 
 function DetailSkeleton() {
@@ -53,9 +57,7 @@ function DetailSkeleton() {
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <div className="space-y-6">
         <Card className="bg-card border rounded-xl">
-          <CardHeader>
-            <Skeleton className="h-6 w-40" />
-          </CardHeader>
+          <CardHeader><Skeleton className="h-6 w-40" /></CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               {Array.from({ length: 8 }).map((_, i) => (
@@ -68,9 +70,7 @@ function DetailSkeleton() {
           </CardContent>
         </Card>
         <Card className="bg-card border rounded-xl">
-          <CardHeader>
-            <Skeleton className="h-6 w-36" />
-          </CardHeader>
+          <CardHeader><Skeleton className="h-6 w-36" /></CardHeader>
           <CardContent className="space-y-6">
             <Skeleton className="h-10 w-full" />
             <Skeleton className="h-6 w-full" />
@@ -80,9 +80,7 @@ function DetailSkeleton() {
       </div>
       <div className="space-y-6">
         <Card className="bg-card border rounded-xl">
-          <CardHeader>
-            <Skeleton className="h-6 w-32" />
-          </CardHeader>
+          <CardHeader><Skeleton className="h-6 w-32" /></CardHeader>
           <CardContent className="space-y-4">
             <Skeleton className="h-20 w-full" />
             <Skeleton className="h-20 w-full" />
@@ -96,11 +94,14 @@ function DetailSkeleton() {
 
 export default function OrderDetailPage() {
   const params = useParams()
+  const orderId = params.id as string
+
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [isSendingUpdate, setIsSendingUpdate] = useState(false)
+  const [isSavingNote, setIsSavingNote] = useState(false)
   const [order, setOrder] = useState<Order | null>(null)
-  const [customer, setCustomer] = useState<typeof customers[0] | null>(null)
+  const [timeline, setTimeline] = useState<OrderUpdate[]>([])
   const [status, setStatus] = useState<Order["status"]>("pending")
   const [progress, setProgress] = useState([0])
   const [internalNote, setInternalNote] = useState("")
@@ -108,23 +109,28 @@ export default function OrderDetailPage() {
   const [copied, setCopied] = useState(false)
 
   useEffect(() => {
-    // Simulate loading
-    const timer = setTimeout(() => {
-      const foundOrder = orders.find((o) => o.id === params.id)
-      if (foundOrder) {
-        setOrder(foundOrder)
-        setStatus(foundOrder.status)
-        setProgress([foundOrder.progress])
-        const foundCustomer = customers.find((c) => c.id === foundOrder.customerId)
-        setCustomer(foundCustomer || null)
+    async function loadData() {
+      try {
+        const [orderData, updates] = await Promise.all([
+          getOrderById(orderId),
+          getOrderUpdates(orderId),
+        ])
+        setOrder(orderData)
+        setStatus(orderData.status)
+        setProgress([orderData.progress])
+        setTimeline(updates)
+      } catch (error) {
+        console.error("Error loading order:", error)
+        toast.error("Gagal memuat data pesanan")
+      } finally {
+        setIsLoading(false)
       }
-      setIsLoading(false)
-    }, 600)
-    return () => clearTimeout(timer)
-  }, [params.id])
+    }
+    loadData()
+  }, [orderId])
 
   const handleCopyLink = () => {
-    const trackUrl = `${window.location.origin}/track/${params.id}`
+    const trackUrl = `${window.location.origin}/track/${orderId}`
     navigator.clipboard.writeText(trackUrl)
     setCopied(true)
     toast.info("Link tracker disalin ke clipboard")
@@ -133,10 +139,15 @@ export default function OrderDetailPage() {
 
   const handleSaveChanges = async () => {
     setIsSaving(true)
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 800))
-    setIsSaving(false)
-    toast.success("Status dan progress berhasil diperbarui")
+    try {
+      await updateOrder(orderId, { status, progress: progress[0] })
+      setOrder((prev) => prev ? { ...prev, status, progress: progress[0] } : prev)
+      toast.success("Status dan progress berhasil diperbarui")
+    } catch (error) {
+      toast.error("Gagal menyimpan perubahan")
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   const handleSaveNote = async () => {
@@ -144,10 +155,21 @@ export default function OrderDetailPage() {
       toast.error("Catatan tidak boleh kosong")
       return
     }
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 500))
-    toast.success("Catatan internal berhasil disimpan")
-    setInternalNote("")
+    setIsSavingNote(true)
+    try {
+      const update = await createOrderUpdate({
+        order_id: orderId,
+        message: internalNote.trim(),
+        is_customer_visible: false,
+      })
+      setTimeline((prev) => [update, ...prev])
+      setInternalNote("")
+      toast.success("Catatan internal berhasil disimpan")
+    } catch (error) {
+      toast.error("Gagal menyimpan catatan")
+    } finally {
+      setIsSavingNote(false)
+    }
   }
 
   const handleSendUpdate = async () => {
@@ -156,11 +178,20 @@ export default function OrderDetailPage() {
       return
     }
     setIsSendingUpdate(true)
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 800))
-    setIsSendingUpdate(false)
-    toast.success("Update berhasil dikirim ke pelanggan")
-    setCustomerUpdate("")
+    try {
+      const update = await createOrderUpdate({
+        order_id: orderId,
+        message: customerUpdate.trim(),
+        is_customer_visible: true,
+      })
+      setTimeline((prev) => [update, ...prev])
+      setCustomerUpdate("")
+      toast.success("Update berhasil dikirim ke pelanggan")
+    } catch (error) {
+      toast.error("Gagal mengirim update")
+    } finally {
+      setIsSendingUpdate(false)
+    }
   }
 
   if (isLoading) {
@@ -183,7 +214,9 @@ export default function OrderDetailPage() {
       <div className="p-6">
         <div className="text-center py-12">
           <h2 className="text-xl font-semibold mb-2">Pesanan tidak ditemukan</h2>
-          <p className="text-muted-foreground mb-4">Pesanan dengan ID {params.id} tidak ada.</p>
+          <p className="text-muted-foreground mb-4">
+            Pesanan dengan ID {orderId} tidak ada.
+          </p>
           <Button asChild>
             <Link href="/admin/orders">Kembali ke Daftar Pesanan</Link>
           </Button>
@@ -202,14 +235,14 @@ export default function OrderDetailPage() {
         </Button>
         <div>
           <h1 className="text-2xl font-bold text-foreground">Detail Pesanan</h1>
-          <p className="text-muted-foreground">{order.id}</p>
+          <p className="text-muted-foreground">{order.order_number}</p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Left Column */}
         <div className="space-y-6">
-          {/* Order Info Card */}
+          {/* Order Info */}
           <Card className="bg-card border rounded-xl">
             <CardHeader>
               <CardTitle className="text-lg">Informasi Pesanan</CardTitle>
@@ -218,45 +251,62 @@ export default function OrderDetailPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm text-muted-foreground">Pelanggan</p>
-                  <p className="font-medium">{order.customerName}</p>
+                  <p className="font-medium">
+                    {order.customer?.full_name || "-"}
+                  </p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Email</p>
-                  <p className="font-medium">{customer?.email || "-"}</p>
+                  <p className="font-medium">{order.customer?.email || "-"}</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">WhatsApp</p>
-                  <p className="font-medium">{customer?.whatsapp || "-"}</p>
+                  <p className="font-medium">{order.customer?.whatsapp || "-"}</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Layanan</p>
-                  <p className="font-medium">{order.service}</p>
+                  <p className="font-medium">{order.service?.nama || "-"}</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Harga</p>
-                  <p className="font-medium">{formatRupiah(order.price)}</p>
+                  <p className="font-medium">
+                    {formatRupiah(order.service?.harga ?? 0)}
+                  </p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Deadline</p>
-                  <p className="font-medium">{formatDate(order.deadline)}</p>
+                  <p className="font-medium">
+                    {order.deadline ? formatDate(order.deadline) : "-"}
+                  </p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Dibuat</p>
-                  <p className="font-medium">{formatDate(order.createdAt)}</p>
+                  <p className="font-medium">{formatDate(order.created_at)}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Status</p>
+                  <Badge className={statusColors[order.status]} variant="secondary">
+                    {statusLabels[order.status]}
+                  </Badge>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Status & Progress Card */}
+          {/* Status & Progress */}
           <Card className="bg-card border rounded-xl">
             <CardHeader>
               <CardTitle className="text-lg">Status & Progress</CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
               <div>
-                <label className="text-sm text-muted-foreground mb-2 block">Status</label>
-                <Select value={status} onValueChange={(v) => setStatus(v as Order["status"])}>
+                <label className="text-sm text-muted-foreground mb-2 block">
+                  Status
+                </label>
+                <Select
+                  value={status}
+                  onValueChange={(v) => setStatus(v as Order["status"])}
+                >
                   <SelectTrigger className="w-full">
                     <SelectValue />
                   </SelectTrigger>
@@ -264,7 +314,7 @@ export default function OrderDetailPage() {
                     {statusOptions.map((opt) => (
                       <SelectItem key={opt} value={opt}>
                         <Badge className={statusColors[opt]} variant="secondary">
-                          {orderStatusLabels[opt]}
+                          {statusLabels[opt]}
                         </Badge>
                       </SelectItem>
                     ))}
@@ -283,7 +333,7 @@ export default function OrderDetailPage() {
                   className="w-full"
                 />
               </div>
-              <Button 
+              <Button
                 className="w-full bg-indigo-600 hover:bg-indigo-700 text-white"
                 onClick={handleSaveChanges}
                 disabled={isSaving}
@@ -303,7 +353,7 @@ export default function OrderDetailPage() {
 
         {/* Right Column */}
         <div className="space-y-6">
-          {/* Internal Note Card */}
+          {/* Internal Note */}
           <Card className="bg-yellow-50 dark:bg-yellow-900/10 border border-yellow-200 dark:border-yellow-800 rounded-xl">
             <CardHeader>
               <div className="flex items-center gap-2">
@@ -315,9 +365,9 @@ export default function OrderDetailPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {order.notes && (
+              {order.internal_notes && (
                 <div className="bg-white dark:bg-gray-900 p-3 rounded-lg text-sm">
-                  {order.notes}
+                  {order.internal_notes}
                 </div>
               )}
               <Textarea
@@ -326,13 +376,25 @@ export default function OrderDetailPage() {
                 onChange={(e) => setInternalNote(e.target.value)}
                 rows={3}
               />
-              <Button variant="outline" className="w-full" onClick={handleSaveNote}>
-                Simpan Catatan
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={handleSaveNote}
+                disabled={isSavingNote}
+              >
+                {isSavingNote ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Menyimpan...
+                  </>
+                ) : (
+                  "Simpan Catatan"
+                )}
               </Button>
             </CardContent>
           </Card>
 
-          {/* Customer Update Card */}
+          {/* Customer Update */}
           <Card className="bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800 rounded-xl">
             <CardHeader>
               <div className="flex items-center gap-2">
@@ -350,7 +412,7 @@ export default function OrderDetailPage() {
                 onChange={(e) => setCustomerUpdate(e.target.value)}
                 rows={3}
               />
-              <Button 
+              <Button
                 className="w-full bg-green-600 hover:bg-green-700 text-white"
                 onClick={handleSendUpdate}
                 disabled={isSendingUpdate}
@@ -370,43 +432,55 @@ export default function OrderDetailPage() {
             </CardContent>
           </Card>
 
-          {/* Timeline Card */}
+          {/* Timeline */}
           <Card className="bg-card border rounded-xl">
             <CardHeader>
               <CardTitle className="text-lg">Timeline</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {mockTimeline.map((item, index) => (
-                  <div key={index} className="flex gap-3">
-                    <div className="flex flex-col items-center">
-                      <div className={`w-3 h-3 rounded-full ${item.type === "update" ? "bg-indigo-500" : "bg-gray-400"}`} />
-                      {index < mockTimeline.length - 1 && (
-                        <div className="w-0.5 h-full bg-gray-200 dark:bg-gray-700" />
-                      )}
-                    </div>
-                    <div className="flex-1 pb-4">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Clock className="h-3 w-3 text-muted-foreground" />
-                        <span className="text-xs text-muted-foreground">{item.date}</span>
-                        {item.visible && (
-                          <Eye className="h-3 w-3 text-green-500" />
+              {timeline.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  Belum ada update
+                </p>
+              ) : (
+                <div className="space-y-4">
+                  {timeline.map((item, index) => (
+                    <div key={item.id} className="flex gap-3">
+                      <div className="flex flex-col items-center">
+                        <div
+                          className={`w-3 h-3 rounded-full ${
+                            item.is_customer_visible
+                              ? "bg-indigo-500"
+                              : "bg-yellow-400"
+                          }`}
+                        />
+                        {index < timeline.length - 1 && (
+                          <div className="w-0.5 h-full bg-gray-200 dark:bg-gray-700" />
                         )}
                       </div>
-                      <p className="text-sm">{item.message}</p>
+                      <div className="flex-1 pb-4">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Clock className="h-3 w-3 text-muted-foreground" />
+                          <span className="text-xs text-muted-foreground">
+                            {formatDate(item.created_at)}
+                          </span>
+                          {item.is_customer_visible ? (
+                            <Eye className="h-3 w-3 text-green-500" />
+                          ) : (
+                            <Lock className="h-3 w-3 text-yellow-500" />
+                          )}
+                        </div>
+                        <p className="text-sm">{item.message}</p>
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
 
           {/* Copy Tracker Link */}
-          <Button
-            variant="outline"
-            className="w-full"
-            onClick={handleCopyLink}
-          >
+          <Button variant="outline" className="w-full" onClick={handleCopyLink}>
             {copied ? (
               <>
                 <Check className="h-4 w-4 mr-2 text-green-500" />

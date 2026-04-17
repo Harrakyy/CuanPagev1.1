@@ -1,29 +1,27 @@
 import { createClient } from "./client"
-import { createClient as createServerClient } from "./server"
 
-// Types matching the database schema
+// Types matching the actual database schema
 export interface Profile {
   id: string
   email: string | null
   full_name: string | null
   whatsapp: string | null
   role: "admin" | "customer"
+  status: string | null
   avatar_url: string | null
   created_at: string
-  updated_at: string
 }
 
 export interface Service {
   id: string
-  name: string
-  description: string | null
-  price: number
-  estimated_days: number
+  nama: string
+  deskripsi: string | null
+  harga: number
+  estimasi: string
   max_slots: number
-  filled_slots: number
+  current_slots: number
   is_active: boolean
   created_at: string
-  updated_at: string
 }
 
 export interface Order {
@@ -34,8 +32,8 @@ export interface Order {
   status: "pending" | "in_progress" | "review" | "revision" | "completed" | "cancelled"
   progress: number
   price: number
-  notes: string | null
   deadline: string | null
+  internal_notes: string | null
   created_at: string
   updated_at: string
   // Joined data
@@ -43,13 +41,20 @@ export interface Order {
   service?: Service
 }
 
+const ALLOWED_ORDER_TRANSITIONS: Record<Order["status"], Order["status"][]> = {
+  pending: ["in_progress", "cancelled"],
+  in_progress: ["review", "revision", "cancelled"],
+  review: ["revision", "completed", "cancelled"],
+  revision: ["in_progress", "review", "cancelled"],
+  completed: [],
+  cancelled: [],
+}
+
 export interface OrderUpdate {
   id: string
   order_id: string
-  title: string
-  description: string | null
-  progress: number
-  created_by: string
+  message: string
+  is_customer_visible: boolean
   created_at: string
 }
 
@@ -59,13 +64,13 @@ export interface Invoice {
   order_id: string
   customer_id: string
   subtotal: number
-  tax: number
+  tax_percent: number
   total: number
   status: "unpaid" | "paid" | "overdue" | "partial"
-  paid_amount: number
   due_date: string
+  notes: string | null
+  paid_at: string | null
   created_at: string
-  updated_at: string
   // Joined data
   customer?: Profile
   order?: Order
@@ -75,19 +80,18 @@ export interface Invoice {
 export interface InvoiceItem {
   id: string
   invoice_id: string
-  description: string
-  quantity: number
-  unit_price: number
-  total: number
+  nama_layanan: string
+  qty: number
+  harga_satuan: number
+  subtotal: number
 }
 
 export interface Payment {
   id: string
+  customer_id: string
   invoice_id: string
-  amount: number
-  payment_method: string | null
-  payment_proof: string | null
-  notes: string | null
+  jumlah: number
+  metode: string | null
   created_at: string
   // Joined data
   invoice?: Invoice
@@ -95,23 +99,19 @@ export interface Payment {
 
 export interface Message {
   id: string
-  customer_id: string
+  sender_id: string | null
+  receiver_id: string | null
   content: string
-  sender: "admin" | "customer"
   is_internal: boolean
   is_read: boolean
   created_at: string
-  // Joined data
-  customer?: Profile
 }
 
 export interface Notification {
   id: string
   user_id: string
-  type: "order" | "invoice" | "message" | "deadline" | "payment"
-  title: string
-  description: string | null
-  link: string | null
+  type: string
+  message: string
   is_read: boolean
   created_at: string
 }
@@ -128,6 +128,7 @@ export function formatRupiah(amount: number): string {
 
 // Helper function to format date
 export function formatDate(dateString: string): string {
+  if (!dateString) return "-"
   const date = new Date(dateString)
   return new Intl.DateTimeFormat("id-ID", {
     day: "numeric",
@@ -152,12 +153,6 @@ export function getRelativeTime(dateString: string): string {
   return formatDate(dateString)
 }
 
-// ============ CLIENT-SIDE QUERIES ============
-
-export function useSupabaseClient() {
-  return createClient()
-}
-
 // ============ SERVICES ============
 
 export async function getServices() {
@@ -166,7 +161,6 @@ export async function getServices() {
     .from("services")
     .select("*")
     .order("created_at", { ascending: true })
-  
   if (error) throw error
   return data as Service[]
 }
@@ -178,7 +172,6 @@ export async function getActiveServices() {
     .select("*")
     .eq("is_active", true)
     .order("created_at", { ascending: true })
-  
   if (error) throw error
   return data as Service[]
 }
@@ -190,19 +183,17 @@ export async function getServiceById(id: string) {
     .select("*")
     .eq("id", id)
     .single()
-  
   if (error) throw error
   return data as Service
 }
 
-export async function createService(service: Omit<Service, "id" | "created_at" | "updated_at">) {
+export async function createService(service: Omit<Service, "id" | "created_at">) {
   const supabase = createClient()
   const { data, error } = await supabase
     .from("services")
     .insert(service)
     .select()
     .single()
-  
   if (error) throw error
   return data as Service
 }
@@ -215,7 +206,6 @@ export async function updateService(id: string, updates: Partial<Service>) {
     .eq("id", id)
     .select()
     .single()
-  
   if (error) throw error
   return data as Service
 }
@@ -232,7 +222,6 @@ export async function getOrders() {
       service:services(*)
     `)
     .order("created_at", { ascending: false })
-  
   if (error) throw error
   return data as Order[]
 }
@@ -241,13 +230,9 @@ export async function getOrdersByCustomer(customerId: string) {
   const supabase = createClient()
   const { data, error } = await supabase
     .from("orders")
-    .select(`
-      *,
-      service:services(*)
-    `)
+    .select(`*, service:services(*)`)
     .eq("customer_id", customerId)
     .order("created_at", { ascending: false })
-  
   if (error) throw error
   return data as Order[]
 }
@@ -263,23 +248,6 @@ export async function getOrderById(id: string) {
     `)
     .eq("id", id)
     .single()
-  
-  if (error) throw error
-  return data as Order
-}
-
-export async function getOrderByNumber(orderNumber: string) {
-  const supabase = createClient()
-  const { data, error } = await supabase
-    .from("orders")
-    .select(`
-      *,
-      customer:profiles!orders_customer_id_fkey(*),
-      service:services(*)
-    `)
-    .eq("order_number", orderNumber)
-    .single()
-  
   if (error) throw error
   return data as Order
 }
@@ -287,19 +255,14 @@ export async function getOrderByNumber(orderNumber: string) {
 export async function createOrder(order: {
   customer_id: string
   service_id: string
-  price: number
-  notes?: string
   deadline?: string
+  internal_notes?: string
 }) {
   const supabase = createClient()
-  
-  // Generate order number
   const { count } = await supabase
     .from("orders")
     .select("*", { count: "exact", head: true })
-  
   const orderNumber = `CP-${String((count || 0) + 1).padStart(3, "0")}`
-  
   const { data, error } = await supabase
     .from("orders")
     .insert({
@@ -310,20 +273,37 @@ export async function createOrder(order: {
     })
     .select()
     .single()
-  
   if (error) throw error
   return data as Order
 }
 
 export async function updateOrder(id: string, updates: Partial<Order>) {
   const supabase = createClient()
+
+  if (updates.status) {
+    const { data: existing, error: existingError } = await supabase
+      .from("orders")
+      .select("status")
+      .eq("id", id)
+      .single()
+
+    if (existingError) throw existingError
+
+    const currentStatus = existing.status as Order["status"]
+    const nextStatus = updates.status as Order["status"]
+    const allowedNext = ALLOWED_ORDER_TRANSITIONS[currentStatus] || []
+
+    if (currentStatus !== nextStatus && !allowedNext.includes(nextStatus)) {
+      throw new Error(`Invalid order status transition: ${currentStatus} -> ${nextStatus}`)
+    }
+  }
+
   const { data, error } = await supabase
     .from("orders")
     .update(updates)
     .eq("id", id)
     .select()
     .single()
-  
   if (error) throw error
   return data as Order
 }
@@ -337,17 +317,14 @@ export async function getOrderUpdates(orderId: string) {
     .select("*")
     .eq("order_id", orderId)
     .order("created_at", { ascending: false })
-  
   if (error) throw error
   return data as OrderUpdate[]
 }
 
 export async function createOrderUpdate(update: {
   order_id: string
-  title: string
-  description?: string
-  progress: number
-  created_by: string
+  message: string
+  is_customer_visible: boolean
 }) {
   const supabase = createClient()
   const { data, error } = await supabase
@@ -355,15 +332,7 @@ export async function createOrderUpdate(update: {
     .insert(update)
     .select()
     .single()
-  
   if (error) throw error
-  
-  // Also update the order's progress
-  await supabase
-    .from("orders")
-    .update({ progress: update.progress })
-    .eq("id", update.order_id)
-  
   return data as OrderUpdate
 }
 
@@ -380,7 +349,6 @@ export async function getInvoices() {
       items:invoice_items(*)
     `)
     .order("created_at", { ascending: false })
-  
   if (error) throw error
   return data as Invoice[]
 }
@@ -389,14 +357,9 @@ export async function getInvoicesByCustomer(customerId: string) {
   const supabase = createClient()
   const { data, error } = await supabase
     .from("invoices")
-    .select(`
-      *,
-      order:orders(*),
-      items:invoice_items(*)
-    `)
+    .select(`*, order:orders(*), items:invoice_items(*)`)
     .eq("customer_id", customerId)
     .order("created_at", { ascending: false })
-  
   if (error) throw error
   return data as Invoice[]
 }
@@ -413,24 +376,6 @@ export async function getInvoiceById(id: string) {
     `)
     .eq("id", id)
     .single()
-  
-  if (error) throw error
-  return data as Invoice
-}
-
-export async function getInvoiceByNumber(invoiceNumber: string) {
-  const supabase = createClient()
-  const { data, error } = await supabase
-    .from("invoices")
-    .select(`
-      *,
-      customer:profiles!invoices_customer_id_fkey(*),
-      order:orders(*),
-      items:invoice_items(*)
-    `)
-    .eq("invoice_number", invoiceNumber)
-    .single()
-  
   if (error) throw error
   return data as Invoice
 }
@@ -439,20 +384,17 @@ export async function createInvoice(invoice: {
   order_id: string
   customer_id: string
   subtotal: number
-  tax: number
+  tax_percent: number
   total: number
   due_date: string
-  items: { description: string; quantity: number; unit_price: number; total: number }[]
+  notes?: string
+  items: { nama_layanan: string; qty: number; harga_satuan: number; subtotal: number }[]
 }) {
   const supabase = createClient()
-  
-  // Generate invoice number
   const { count } = await supabase
     .from("invoices")
     .select("*", { count: "exact", head: true })
-  
   const invoiceNumber = `INV-${String((count || 0) + 1).padStart(3, "0")}`
-  
   const { data: invoiceData, error: invoiceError } = await supabase
     .from("invoices")
     .insert({
@@ -460,29 +402,23 @@ export async function createInvoice(invoice: {
       order_id: invoice.order_id,
       customer_id: invoice.customer_id,
       subtotal: invoice.subtotal,
-      tax: invoice.tax,
+      tax_percent: invoice.tax_percent,
       total: invoice.total,
       due_date: invoice.due_date,
+      notes: invoice.notes,
       status: "unpaid",
-      paid_amount: 0,
     })
     .select()
     .single()
-  
   if (invoiceError) throw invoiceError
-  
-  // Insert invoice items
   const items = invoice.items.map(item => ({
     ...item,
     invoice_id: invoiceData.id,
   }))
-  
   const { error: itemsError } = await supabase
     .from("invoice_items")
     .insert(items)
-  
   if (itemsError) throw itemsError
-  
   return invoiceData as Invoice
 }
 
@@ -494,7 +430,6 @@ export async function updateInvoice(id: string, updates: Partial<Invoice>) {
     .eq("id", id)
     .select()
     .single()
-  
   if (error) throw error
   return data as Invoice
 }
@@ -513,46 +448,30 @@ export async function getPayments() {
       )
     `)
     .order("created_at", { ascending: false })
-  
   if (error) throw error
   return data as Payment[]
 }
 
 export async function createPayment(payment: {
   invoice_id: string
-  amount: number
-  payment_method?: string
-  payment_proof?: string
-  notes?: string
+  customer_id: string
+  jumlah: number
+  metode?: string
 }) {
   const supabase = createClient()
-  
-  // Insert payment
   const { data, error } = await supabase
     .from("payments")
     .insert(payment)
     .select()
     .single()
-  
   if (error) throw error
-  
-  // Update invoice paid amount and status
-  const { data: invoice } = await supabase
+
+  // Update invoice status to paid
+  await supabase
     .from("invoices")
-    .select("total, paid_amount")
+    .update({ status: "paid", paid_at: new Date().toISOString() })
     .eq("id", payment.invoice_id)
-    .single()
-  
-  if (invoice) {
-    const newPaidAmount = (invoice.paid_amount || 0) + payment.amount
-    const newStatus = newPaidAmount >= invoice.total ? "paid" : "partial"
-    
-    await supabase
-      .from("invoices")
-      .update({ paid_amount: newPaidAmount, status: newStatus })
-      .eq("id", payment.invoice_id)
-  }
-  
+
   return data as Payment
 }
 
@@ -562,12 +481,8 @@ export async function getMessages() {
   const supabase = createClient()
   const { data, error } = await supabase
     .from("messages")
-    .select(`
-      *,
-      customer:profiles!messages_customer_id_fkey(*)
-    `)
+    .select("*")
     .order("created_at", { ascending: false })
-  
   if (error) throw error
   return data as Message[]
 }
@@ -577,18 +492,17 @@ export async function getMessagesByCustomer(customerId: string) {
   const { data, error } = await supabase
     .from("messages")
     .select("*")
-    .eq("customer_id", customerId)
+    .or(`sender_id.eq.${customerId},receiver_id.eq.${customerId}`)
     .eq("is_internal", false)
     .order("created_at", { ascending: true })
-  
   if (error) throw error
   return data as Message[]
 }
 
 export async function createMessage(message: {
-  customer_id: string
+  sender_id?: string
+  receiver_id?: string
   content: string
-  sender: "admin" | "customer"
   is_internal?: boolean
 }) {
   const supabase = createClient()
@@ -601,7 +515,6 @@ export async function createMessage(message: {
     })
     .select()
     .single()
-  
   if (error) throw error
   return data as Message
 }
@@ -611,9 +524,8 @@ export async function markMessagesAsRead(customerId: string) {
   const { error } = await supabase
     .from("messages")
     .update({ is_read: true })
-    .eq("customer_id", customerId)
+    .eq("receiver_id", customerId)
     .eq("is_read", false)
-  
   if (error) throw error
 }
 
@@ -627,7 +539,6 @@ export async function getNotifications(userId: string) {
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
     .limit(20)
-  
   if (error) throw error
   return data as Notification[]
 }
@@ -639,7 +550,6 @@ export async function getUnreadNotificationsCount(userId: string) {
     .select("*", { count: "exact", head: true })
     .eq("user_id", userId)
     .eq("is_read", false)
-  
   if (error) throw error
   return count || 0
 }
@@ -650,7 +560,6 @@ export async function markNotificationAsRead(id: string) {
     .from("notifications")
     .update({ is_read: true })
     .eq("id", id)
-  
   if (error) throw error
 }
 
@@ -661,27 +570,20 @@ export async function markAllNotificationsAsRead(userId: string) {
     .update({ is_read: true })
     .eq("user_id", userId)
     .eq("is_read", false)
-  
   if (error) throw error
 }
 
 export async function createNotification(notification: {
   user_id: string
-  type: "order" | "invoice" | "message" | "deadline" | "payment"
-  title: string
-  description?: string
-  link?: string
+  type: string
+  message: string
 }) {
   const supabase = createClient()
   const { data, error } = await supabase
     .from("notifications")
-    .insert({
-      ...notification,
-      is_read: false,
-    })
+    .insert({ ...notification, is_read: false })
     .select()
     .single()
-  
   if (error) throw error
   return data as Notification
 }
@@ -695,7 +597,6 @@ export async function getCustomers() {
     .select("*")
     .eq("role", "customer")
     .order("created_at", { ascending: false })
-  
   if (error) throw error
   return data as Profile[]
 }
@@ -707,7 +608,6 @@ export async function getProfileById(id: string) {
     .select("*")
     .eq("id", id)
     .single()
-  
   if (error) throw error
   return data as Profile
 }
@@ -720,7 +620,6 @@ export async function updateProfile(id: string, updates: Partial<Profile>) {
     .eq("id", id)
     .select()
     .single()
-  
   if (error) throw error
   return data as Profile
 }
@@ -729,86 +628,84 @@ export async function updateProfile(id: string, updates: Partial<Profile>) {
 
 export async function getAdminDashboardStats() {
   const supabase = createClient()
-  
-  // Get orders count by status
+
   const { data: orders } = await supabase
     .from("orders")
-    .select("status, price")
-  
-  // Get invoices for revenue
+    .select("status")
+
   const { data: invoices } = await supabase
     .from("invoices")
-    .select("total, paid_amount, status")
-  
-  // Get unread messages count
+    .select("total, tax_percent, status, paid_at")
+
+  const { data: payments } = await supabase
+    .from("payments")
+    .select("jumlah")
+
   const { count: unreadMessages } = await supabase
     .from("messages")
     .select("*", { count: "exact", head: true })
     .eq("is_read", false)
-    .eq("sender", "customer")
-  
-  const stats = {
+    .is("sender_id", null) // messages from customers have no sender_id (or adjust as needed)
+
+  const totalRevenue = payments?.reduce((sum, p) => sum + (p.jumlah || 0), 0) || 0
+
+  return {
     totalOrders: orders?.length || 0,
     activeOrders: orders?.filter(o => ["pending", "in_progress", "review", "revision"].includes(o.status)).length || 0,
     completedOrders: orders?.filter(o => o.status === "completed").length || 0,
-    totalRevenue: invoices?.reduce((sum, inv) => sum + (inv.paid_amount || 0), 0) || 0,
-    pendingRevenue: invoices?.reduce((sum, inv) => sum + (inv.total - (inv.paid_amount || 0)), 0) || 0,
-    unreadMessages: unreadMessages || 0,
+    totalRevenue,
     overdueInvoices: invoices?.filter(i => i.status === "overdue").length || 0,
+    unpaidInvoices: invoices?.filter(i => i.status === "unpaid" || i.status === "partial").length || 0,
+    unreadMessages: unreadMessages || 0,
   }
-  
-  return stats
 }
 
 export async function getCustomerDashboardStats(customerId: string) {
   const supabase = createClient()
-  
+
   const { data: orders } = await supabase
     .from("orders")
-    .select("status, price")
+    .select("status")
     .eq("customer_id", customerId)
-  
+
+  const { data: payments } = await supabase
+    .from("payments")
+    .select("jumlah")
+    .eq("customer_id", customerId)
+
   const { data: invoices } = await supabase
     .from("invoices")
-    .select("total, paid_amount, status")
+    .select("status")
     .eq("customer_id", customerId)
-  
-  const stats = {
+
+  return {
     totalOrders: orders?.length || 0,
     activeOrders: orders?.filter(o => ["pending", "in_progress", "review", "revision"].includes(o.status)).length || 0,
     completedOrders: orders?.filter(o => o.status === "completed").length || 0,
-    totalSpent: invoices?.reduce((sum, inv) => sum + (inv.paid_amount || 0), 0) || 0,
+    totalSpent: payments?.reduce((sum, p) => sum + (p.jumlah || 0), 0) || 0,
     unpaidInvoices: invoices?.filter(i => ["unpaid", "partial", "overdue"].includes(i.status)).length || 0,
   }
-  
-  return stats
 }
 
 // ============ REVENUE DATA ============
 
 export async function getMonthlyRevenue(year: number = new Date().getFullYear()) {
   const supabase = createClient()
-  
+
   const { data: payments } = await supabase
     .from("payments")
-    .select("amount, created_at")
+    .select("jumlah, created_at")
     .gte("created_at", `${year}-01-01`)
     .lt("created_at", `${year + 1}-01-01`)
-  
-  const monthlyRevenue: { month: string; revenue: number }[] = []
+
   const months = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"]
+
+  return months.map((month, i) => ({
+    month,
+    revenue: payments
+      ?.filter(p => new Date(p.created_at).getMonth() === i)
+      .reduce((sum, p) => sum + (p.jumlah || 0), 0) || 0,
+  }))
+
   
-  for (let i = 0; i < 12; i++) {
-    const monthPayments = payments?.filter(p => {
-      const date = new Date(p.created_at)
-      return date.getMonth() === i
-    }) || []
-    
-    monthlyRevenue.push({
-      month: months[i],
-      revenue: monthPayments.reduce((sum, p) => sum + p.amount, 0),
-    })
-  }
-  
-  return monthlyRevenue
 }

@@ -1,25 +1,22 @@
 "use client"
 
 import * as React from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Table, TableBody, TableCell, TableHead,
+  TableHeader, TableRow,
 } from "@/components/ui/table"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Search, Eye, Plus } from "lucide-react"
+import { Search, Eye, Plus, RefreshCw } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
 import { getOrders, formatDate, formatRupiah, type Order } from "@/lib/supabase/queries"
+import { useAuth } from "@/contexts/auth-context"
 
 const orderStatusLabels: Record<string, string> = {
   pending: "Menunggu",
@@ -67,34 +64,51 @@ function TableSkeleton() {
 }
 
 export default function OrdersPage() {
+  const { user, isLoading: authLoading } = useAuth()
   const [search, setSearch] = useState("")
   const [activeTab, setActiveTab] = useState("all")
   const [isLoading, setIsLoading] = useState(true)
+  const [isRefreshing, setIsRefreshing] = useState(false)
   const [orders, setOrders] = useState<Order[]>([])
 
-  useEffect(() => {
-    async function loadOrders() {
-      try {
-        const data = await getOrders()
-        setOrders(data)
-      } catch (error) {
-        console.error("Error loading orders:", error)
-      } finally {
-        setIsLoading(false)
-      }
+  const loadOrders = useCallback(async (silent = false) => {
+    if (authLoading || !user || user.role !== "admin") {
+      setOrders([])
+      setIsLoading(false)
+      setIsRefreshing(false)
+      return
     }
-    
+
+    if (!silent) setIsLoading(true)
+    else setIsRefreshing(true)
+    try {
+      const data = await getOrders()
+      setOrders(data)
+    } catch (error) {
+      console.error("Error loading orders:", error)
+    } finally {
+      setIsLoading(false)
+      setIsRefreshing(false)
+    }
+  }, [authLoading, user])
+
+  useEffect(() => {
+    if (authLoading) return
+
     loadOrders()
-  }, [])
+    // Auto-refresh setiap 30 detik
+    const interval = setInterval(() => loadOrders(true), 30000)
+    return () => clearInterval(interval)
+  }, [authLoading, loadOrders])
 
   const filteredOrders = orders.filter((order) => {
+    const serviceName = order.service?.nama || (order.service as any)?.name || ""
     const matchesSearch =
       order.order_number.toLowerCase().includes(search.toLowerCase()) ||
       (order.customer?.full_name || "").toLowerCase().includes(search.toLowerCase()) ||
-      (order.service?.name || "").toLowerCase().includes(search.toLowerCase())
+      serviceName.toLowerCase().includes(search.toLowerCase())
 
     const matchesStatus = activeTab === "all" || order.status === activeTab
-
     return matchesSearch && matchesStatus
   })
 
@@ -105,10 +119,21 @@ export default function OrdersPage() {
           <h1 className="text-2xl font-bold text-foreground">Pesanan</h1>
           <p className="text-muted-foreground">Kelola semua pesanan pelanggan</p>
         </div>
-        <Button className="bg-indigo-600 hover:bg-indigo-700 text-white">
-          <Plus className="h-4 w-4 mr-2" />
-          Pesanan Baru
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => loadOrders(true)}
+            disabled={isRefreshing}
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
+            Refresh
+          </Button>
+          <Button className="bg-indigo-600 hover:bg-indigo-700 text-white">
+            <Plus className="h-4 w-4 mr-2" />
+            Pesanan Baru
+          </Button>
+        </div>
       </div>
 
       <Card className="bg-card border rounded-xl">
@@ -152,34 +177,38 @@ export default function OrdersPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredOrders.map((order) => (
-                  <TableRow key={order.id}>
-                    <TableCell className="font-medium">{order.order_number}</TableCell>
-                    <TableCell>{order.customer?.full_name || "-"}</TableCell>
-                    <TableCell>{order.service?.name || "-"}</TableCell>
-                    <TableCell>{formatRupiah(order.price)}</TableCell>
-                    <TableCell>{order.deadline ? formatDate(order.deadline) : "-"}</TableCell>
-                    <TableCell>
-                      <Badge className={statusColors[order.status]} variant="secondary">
-                        {orderStatusLabels[order.status]}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Progress value={order.progress} className="w-20 h-2" />
-                        <span className="text-sm text-muted-foreground">{order.progress}%</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button variant="ghost" size="sm" asChild>
-                        <Link href={`/admin/orders/${order.id}`}>
-                          <Eye className="h-4 w-4 mr-1" />
-                          Detail
-                        </Link>
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {filteredOrders.map((order) => {
+                  const serviceName = order.service?.nama || (order.service as any)?.name || "-"
+                  const price = order.price ?? (order.service?.harga ?? 0)
+                  return (
+                    <TableRow key={order.id}>
+                      <TableCell className="font-medium">{order.order_number}</TableCell>
+                      <TableCell>{order.customer?.full_name || "-"}</TableCell>
+                      <TableCell>{serviceName}</TableCell>
+                      <TableCell>{formatRupiah(price)}</TableCell>
+                      <TableCell>{order.deadline ? formatDate(order.deadline) : "-"}</TableCell>
+                      <TableCell>
+                        <Badge className={statusColors[order.status]} variant="secondary">
+                          {orderStatusLabels[order.status]}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Progress value={order.progress} className="w-20 h-2" />
+                          <span className="text-sm text-muted-foreground">{order.progress}%</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button variant="ghost" size="sm" asChild>
+                          <Link href={`/admin/orders/${order.id}`}>
+                            <Eye className="h-4 w-4 mr-1" />
+                            Detail
+                          </Link>
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
               </TableBody>
             </Table>
           )}
