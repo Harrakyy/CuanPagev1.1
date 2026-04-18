@@ -17,8 +17,17 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Search, Eye, UserPlus } from "lucide-react"
-import { getCustomers, getOrders, getInvoices, formatRupiah, formatDate, type Profile } from "@/lib/supabase/queries"
+import { Search, Eye, UserPlus, Trash2 } from "lucide-react"
+import { toast } from "sonner"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { getCustomers, getOrders, getInvoices, deleteCustomer, formatRupiah, formatDate, type Profile } from "@/lib/supabase/queries"
 
 interface CustomerWithStats extends Profile {
   totalOrders: number
@@ -48,6 +57,9 @@ export default function CustomersPage() {
   const [search, setSearch] = useState("")
   const [isLoading, setIsLoading] = useState(true)
   const [customers, setCustomers] = useState<CustomerWithStats[]>([])
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [customerToDelete, setCustomerToDelete] = useState<CustomerWithStats | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   useEffect(() => {
     async function loadData() {
@@ -83,6 +95,28 @@ export default function CustomersPage() {
     
     loadData()
   }, [])
+
+  const handleDeleteClick = (customer: CustomerWithStats) => {
+    setCustomerToDelete(customer)
+    setDeleteDialogOpen(true)
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!customerToDelete) return
+    setIsDeleting(true)
+    try {
+      await deleteCustomer(customerToDelete.id)
+      setCustomers(customers.filter(c => c.id !== customerToDelete.id))
+      toast.success(`Pelanggan ${customerToDelete.full_name || customerToDelete.email} berhasil dihapus`)
+      setDeleteDialogOpen(false)
+      setCustomerToDelete(null)
+    } catch (error) {
+      console.error("Error deleting customer:", error)
+      toast.error("Gagal menghapus pelanggan")
+    } finally {
+      setIsDeleting(false)
+    }
+  }
 
   const filteredCustomers = customers.filter((customer) => {
     const matchesSearch =
@@ -167,12 +201,22 @@ export default function CustomersPage() {
                     <TableCell>{customer.totalOrders}</TableCell>
                     <TableCell>{formatRupiah(customer.totalSpent)}</TableCell>
                     <TableCell className="text-right">
-                      <Button variant="ghost" size="sm" asChild>
-                        <Link href={`/admin/customers/${customer.id}`}>
-                          <Eye className="h-4 w-4 mr-1" />
-                          Detail
-                        </Link>
-                      </Button>
+                      <div className="flex items-center justify-end gap-2">
+                        <Button variant="ghost" size="sm" asChild>
+                          <Link href={`/admin/customers/${customer.id}`}>
+                            <Eye className="h-4 w-4 mr-1" />
+                            Detail
+                          </Link>
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          onClick={() => handleDeleteClick(customer)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -187,6 +231,29 @@ export default function CustomersPage() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Hapus Pelanggan</DialogTitle>
+            <DialogDescription>
+              Apakah Anda yakin ingin menghapus pelanggan {customerToDelete?.full_name || customerToDelete?.email}? Tindakan ini tidak dapat dibatalkan.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)} disabled={isDeleting}>
+              Batal
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmDelete}
+              disabled={isDeleting}
+            >
+              {isDeleting ? "Menghapus..." : "Hapus"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

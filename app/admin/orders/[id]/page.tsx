@@ -25,6 +25,7 @@ import {
   getOrderUpdates,
   updateOrder,
   createOrderUpdate,
+  createNotification,
   approveOrder,
   rejectOrder,
   formatDate,
@@ -226,6 +227,10 @@ export default function OrderDetailPage() {
       toast.error("Update tidak boleh kosong")
       return
     }
+    if (!order?.customer_id) {
+      toast.error("Tidak ada pelanggan terkait dengan pesanan ini")
+      return
+    }
     setIsSendingUpdate(true)
     try {
       const update = await createOrderUpdate({
@@ -233,10 +238,16 @@ export default function OrderDetailPage() {
         message: customerUpdate.trim(),
         is_customer_visible: true,
       })
+      await createNotification({
+        user_id: order.customer_id,
+        type: "order_update",
+        message: `Update untuk pesanan ${order?.order_number}: ${customerUpdate.trim()}`,
+      })
       setTimeline((prev) => [update, ...prev])
       setCustomerUpdate("")
       toast.success("Update berhasil dikirim ke pelanggan")
     } catch (error) {
+      console.error("Error sending update:", error)
       toast.error("Gagal mengirim update")
     } finally {
       setIsSendingUpdate(false)

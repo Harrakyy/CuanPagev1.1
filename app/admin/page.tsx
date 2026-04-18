@@ -255,7 +255,7 @@ export default function AdminDashboardPage() {
                     className="text-xs"
                   />
                   <Tooltip
-                    formatter={(value: number) => [formatRupiah(value), "Revenue"]}
+                    formatter={(value) => [formatRupiah(value as number), "Revenue"]}
                     contentStyle={{
                       backgroundColor: "hsl(var(--card))",
                       border: "1px solid hsl(var(--border))",

@@ -688,6 +688,15 @@ export async function updateProfile(id: string, updates: Partial<Profile>) {
   return data as Profile
 }
 
+export async function deleteCustomer(id: string) {
+  const supabase = createClient()
+  const { error } = await supabase
+    .from("profiles")
+    .delete()
+    .eq("id", id)
+  if (error) throw error
+}
+
 // ============ DASHBOARD STATS ============
 
 export async function getAdminDashboardStats() {

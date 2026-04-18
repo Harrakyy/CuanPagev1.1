@@ -32,7 +32,7 @@ import {
   Download,
   FileText,
 } from "lucide-react"
-import { getCustomers, type Profile } from "@/lib/supabase/queries"
+import { getCustomers, getActiveServices, type Profile, type Service } from "@/lib/supabase/queries"
 
 interface LineItem {
   id: number
@@ -43,7 +43,9 @@ interface LineItem {
 
 export default function NewInvoicePage() {
   const [customers, setCustomers] = useState<Profile[]>([])
+  const [services, setServices] = useState<Service[]>([])
   const [selectedCustomer, setSelectedCustomer] = useState("")
+  const [selectedService, setSelectedService] = useState("")
   const [dueDate, setDueDate] = useState("")
   const [taxRate, setTaxRate] = useState(11)
   const [notes, setNotes] = useState("Pembayaran dapat dilakukan melalui transfer bank ke rekening:\nBCA - 1234567890 a.n. CuanPage")
@@ -54,16 +56,30 @@ export default function NewInvoicePage() {
   const invoiceNumber = "CP-2024-009" // Would be auto-generated
 
   useEffect(() => {
-    async function loadCustomers() {
+    async function loadData() {
       try {
-        const data = await getCustomers()
-        setCustomers(data)
+        const [customersData, servicesData] = await Promise.all([
+          getCustomers(),
+          getActiveServices(),
+        ])
+        setCustomers(customersData)
+        setServices(servicesData)
       } catch (error) {
-        console.error("Error loading customers:", error)
+        console.error("Error loading data:", error)
       }
     }
-    loadCustomers()
+    loadData()
   }, [])
+
+  const handleServiceSelect = (serviceId: string) => {
+    const service = services.find(s => s.id === serviceId)
+    setSelectedService(serviceId)
+    if (service) {
+      setLineItems([
+        { id: 1, description: service.nama, qty: 1, price: service.harga },
+      ])
+    }
+  }
 
   const addLineItem = () => {
     setLineItems([
@@ -99,6 +115,49 @@ export default function NewInvoicePage() {
   }
 
   const selectedCustomerData = customers.find((c) => c.id === selectedCustomer)
+
+const handlePrint = () => {
+  const printContents = document.getElementById("invoice-card")?.innerHTML
+  if (!printContents) return
+
+  const printWindow = window.open("", "_blank", "width=800,height=600")
+  if (!printWindow) return
+
+  printWindow.document.write(`
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <title>Invoice ${invoiceNumber}</title>
+        <style>
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body { font-family: sans-serif; padding: 40px; color: #111; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 2rem; }
+          th { text-align: left; padding: 8px 0; font-size: 13px; border-bottom: 1px solid #ddd; }
+          td { padding: 8px 0; font-size: 13px; }
+          .text-right { text-align: right; }
+          .text-muted { color: #6b7280; }
+          .font-bold { font-weight: 700; }
+          .border-t { border-top: 1px solid #ddd; padding-top: 8px; }
+          .flex-between { display: flex; justify-content: space-between; margin-bottom: 2rem; }
+          .totals { text-align: right; margin-bottom: 2rem; }
+          .totals div { display: flex; justify-content: flex-end; gap: 4rem; margin-bottom: 4px; }
+          .notes { border-top: 1px solid #ddd; padding-top: 1rem; }
+          pre { white-space: pre-wrap; font-family: sans-serif; font-size: 13px; }
+        </style>
+      </head>
+      <body>
+        ${printContents}
+      </body>
+    </html>
+  `)
+
+  printWindow.document.close()
+  printWindow.focus()
+  setTimeout(() => {
+    printWindow.print()
+    printWindow.close()
+  }, 500)
+}
 
   return (
     <div className="p-6">
@@ -137,6 +196,28 @@ export default function NewInvoicePage() {
                       customers.map((customer) => (
                         <SelectItem key={customer.id} value={customer.id}>
                           {customer.full_name || customer.email}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label>Layanan</Label>
+                <Select value={selectedService} onValueChange={handleServiceSelect}>
+                  <SelectTrigger className="w-full mt-1">
+                    <SelectValue placeholder="Pilih layanan (opsional)..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {services.length === 0 ? (
+                      <SelectItem value="empty" disabled>
+                        Belum ada layanan
+                      </SelectItem>
+                    ) : (
+                      services.map((service) => (
+                        <SelectItem key={service.id} value={service.id}>
+                          {service.nama} - Rp {service.harga.toLocaleString("id-ID")}
                         </SelectItem>
                       ))
                     )}
@@ -277,20 +358,23 @@ export default function NewInvoicePage() {
               <Send className="h-4 w-4 mr-2" />
               Kirim ke Pelanggan
             </Button>
-            <Button variant="outline">
+            <Button 
+              variant="outline"
+              onClick={handlePrint}
+            >
               <Download className="h-4 w-4 mr-2" />
-              Download PDF
+              Print / PDF
             </Button>
           </div>
         </div>
 
         {/* Preview */}
-        <Card className="bg-white dark:bg-gray-900 border rounded-xl sticky top-6">
-          <CardHeader>
+        <Card className="bg-white dark:bg-gray-900 border rounded-xl sticky top-6 print-container">
+          <CardHeader className="print-hidden">
             <CardTitle className="text-lg">Preview Invoice</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="border rounded-lg p-6 bg-white dark:bg-gray-950">
+          <CardContent className="print-invoice-content">
+            <div id="invoice-card" className="border rounded-lg p-6 bg-white dark:bg-gray-950 print:border-0 print:p-0">
               {/* Invoice Header */}
               <div className="flex justify-between items-start mb-8">
                 <div>
