@@ -79,10 +79,18 @@ export default function InvoiceDetailPage() {
       try {
         const data = await getInvoiceById(invoiceId)
         setInvoice(data)
-      } catch (error) {
-        console.error("Error loading invoice:", error)
+      } catch (error: any) {
+        console.error("Full error:", {
+          message: error?.message,
+          code: error?.code,
+          details: error?.details,
+          hint: error?.hint,
+          status: error?.status,
+          raw: JSON.stringify(error),
+        })
         toast.error("Gagal memuat invoice")
-      } finally {
+      } 
+      {
         setIsLoading(false)
       }
     }
@@ -247,7 +255,7 @@ export default function InvoiceDetailPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 overflow-hidden">
         {/* Invoice Preview */}
-        <Card className="lg:col-span-2 bg-white dark:bg-gray-900 border rounded-xl overflow-hidden">
+        <Card className="lg:col-span-2 bg-white dark:bg-gray-950 border rounded-xl overflow-hidden">
           <CardContent className="p-8">
             <div id="invoice-card" className="border rounded-lg p-8 bg-white dark:bg-gray-950">
               {/* Invoice Header */}
@@ -350,7 +358,7 @@ export default function InvoiceDetailPage() {
 
         {/* Actions */}
         <div className="space-y-4 overflow-hidden">
-          <Card className="bg-white dark:bg-gray-900 border rounded-xl overflow-hidden">
+          <Card className="bg-white dark:bg-gray-950 border rounded-xl overflow-hidden">
             <CardHeader>
               <CardTitle className="text-lg">Aksi</CardTitle>
             </CardHeader>
@@ -392,7 +400,7 @@ export default function InvoiceDetailPage() {
             </CardContent>
           </Card>
 
-          <Card className="bg-white dark:bg-gray-900 border rounded-xl">
+          <Card className="bg-white dark:bg-gray-950 border rounded-xl">
             <CardHeader>
               <CardTitle className="text-lg">Informasi</CardTitle>
             </CardHeader>

@@ -90,7 +90,7 @@ export default function CustomerDetailPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Profile Card */}
-        <Card className="bg-white dark:bg-gray-900 border rounded-xl">
+        <Card className="bg-white dark:bg-gray-950 border rounded-xl">
           <CardContent className="pt-6">
             <div className="flex flex-col items-center text-center">
               <Avatar className="h-20 w-20 mb-4">
@@ -157,7 +157,7 @@ export default function CustomerDetailPage() {
             </TabsList>
 
             <TabsContent value="orders">
-              <Card className="bg-white dark:bg-gray-900 border rounded-xl">
+              <Card className="bg-white dark:bg-gray-950 border rounded-xl">
                 <CardHeader>
                   <CardTitle className="text-lg">Riwayat Pesanan</CardTitle>
                 </CardHeader>
@@ -201,7 +201,7 @@ export default function CustomerDetailPage() {
             </TabsContent>
 
             <TabsContent value="invoices">
-              <Card className="bg-white dark:bg-gray-900 border rounded-xl">
+              <Card className="bg-white dark:bg-gray-950 border rounded-xl">
                 <CardHeader>
                   <CardTitle className="text-lg">Riwayat Invoice</CardTitle>
                 </CardHeader>
@@ -243,7 +243,7 @@ export default function CustomerDetailPage() {
             </TabsContent>
 
             <TabsContent value="notes">
-              <Card className="bg-white dark:bg-gray-900 border rounded-xl">
+              <Card className="bg-white dark:bg-gray-950 border rounded-xl">
                 <CardHeader>
                   <CardTitle className="text-lg">Catatan Internal</CardTitle>
                 </CardHeader>
@@ -272,7 +272,7 @@ export default function CustomerDetailPage() {
             </TabsContent>
 
             <TabsContent value="message">
-              <Card className="bg-white dark:bg-gray-900 border rounded-xl">
+              <Card className="bg-white dark:bg-gray-950 border rounded-xl">
                 <CardHeader>
                   <CardTitle className="text-lg">Kirim Pesan</CardTitle>
                 </CardHeader>

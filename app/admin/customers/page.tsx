@@ -134,7 +134,7 @@ export default function CustomersPage() {
           <h1 className="text-2xl font-bold text-foreground">Pelanggan</h1>
           <p className="text-muted-foreground">Kelola data pelanggan Anda</p>
         </div>
-        <Button className="bg-indigo-600 hover:bg-indigo-700 text-white">
+        <Button className="bg-[#BEFF47] hover:bg-[#BEFF47]-700 text-black">
           <UserPlus className="h-4 w-4 mr-2" />
           Tambah Pelanggan
         </Button>

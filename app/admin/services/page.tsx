@@ -163,7 +163,7 @@ const handleSave = async () => {
           <h1 className="text-2xl font-bold text-foreground">Layanan</h1>
           <p className="text-muted-foreground">Kelola paket layanan yang ditawarkan</p>
         </div>
-        <Button className="bg-indigo-600 hover:bg-indigo-700 text-white" onClick={handleAddNew}>
+        <Button className="bg-[#BEFF47] hover:bg-[#BEFF47]-700 text-black" onClick={handleAddNew}>
           <Plus className="h-4 w-4 mr-2" />
           Tambah Layanan
         </Button>

@@ -27,7 +27,7 @@ const invoiceStatusLabels: Record<string, string> = {
 }
 
 const statusColors: Record<string, string> = {
-  unpaid: "bg-black/5 text-black border border-black/10",
+  unpaid: "bg-[#BEFF47] text-black border border-black/10",
   paid: "bg-black/5 text-black border border-black/10",
   partial: "bg-black/5 text-black border border-black/10",
   overdue: "bg-[#BEFF47] text-black border border-black/10",
@@ -105,7 +105,7 @@ export default function InvoicesPage() {
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-black/5 rounded-lg">
-                <FileText className="h-5 w-5 text-black" />
+                <FileText className="h-5 w-5 text-foreground" />
               </div>
               <div>
                 {isLoading ? (
@@ -122,7 +122,7 @@ export default function InvoicesPage() {
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-black/5 rounded-lg">
-                <FileText className="h-5 w-5 text-black" />
+                <FileText className="h-5 w-5 text-foreground" />
               </div>
               <div>
                 {isLoading ? (
@@ -139,7 +139,7 @@ export default function InvoicesPage() {
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-black/5 rounded-lg">
-                <FileText className="h-5 w-5 text-black" />
+                <FileText className="h-5 w-5 text-foreground" />
               </div>
               <div>
                 {isLoading ? (

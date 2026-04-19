@@ -69,7 +69,7 @@ export default function SettingsPage() {
 
         {/* Profile Tab */}
         <TabsContent value="profile">
-          <Card className="bg-white dark:bg-gray-900 border rounded-xl">
+          <Card className="bg-white dark:bg-gray-950 border rounded-xl">
             <CardHeader>
               <CardTitle>Profil Agensi</CardTitle>
               <CardDescription>
@@ -151,7 +151,7 @@ export default function SettingsPage() {
 
         {/* Invoice Tab */}
         <TabsContent value="invoice">
-          <Card className="bg-white dark:bg-gray-900 border rounded-xl">
+          <Card className="bg-white dark:bg-gray-950 border rounded-xl">
             <CardHeader>
               <CardTitle>Pengaturan Invoice</CardTitle>
               <CardDescription>
@@ -206,7 +206,7 @@ export default function SettingsPage() {
 
         {/* Notifications Tab */}
         <TabsContent value="notifications">
-          <Card className="bg-white dark:bg-gray-900 border rounded-xl">
+          <Card className="bg-white dark:bg-gray-950 border rounded-xl">
             <CardHeader>
               <CardTitle>Pengaturan Notifikasi</CardTitle>
               <CardDescription>
@@ -286,7 +286,7 @@ export default function SettingsPage() {
 
         {/* Password Tab */}
         <TabsContent value="password">
-          <Card className="bg-white dark:bg-gray-900 border rounded-xl max-w-lg">
+          <Card className="bg-white dark:bg-gray-950 border rounded-xl max-w-lg">
             <CardHeader>
               <CardTitle>Ubah Password</CardTitle>
               <CardDescription>

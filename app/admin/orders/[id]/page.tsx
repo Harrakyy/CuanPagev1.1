@@ -541,7 +541,7 @@ export default function OrderDetailPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               {order.internal_notes && (
-                <div className="bg-white dark:bg-gray-900 p-3 rounded-lg text-sm">
+                <div className="bg-white dark:bg-gray-950 p-3 rounded-lg text-sm">
                   {order.internal_notes}
                 </div>
               )}

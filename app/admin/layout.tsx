@@ -51,11 +51,11 @@ export default function AdminLayout({
   }
 
   return (
-    <div className="min-h-screen bg-white text-black">
+    <div className="min-h-screen bg-background dark:bg-gray-950 text-foreground">
       <AdminSidebar />
       
       {/* Top header bar */}
-      <header className="fixed top-0 left-0 md:left-64 right-0 z-30 h-16 bg-white border-b border-black/10 flex items-center justify-between md:justify-end gap-2 px-4 md:px-6">
+      <header className="fixed top-0 left-0 md:left-64 right-0 z-30 h-16 bg-background dark:bg-gray-950 border-b border-border flex items-center justify-between md:justify-end gap-2 px-4 md:px-6">
         <div className="md:hidden">
           <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
             <SheetTrigger asChild>
@@ -84,7 +84,7 @@ export default function AdminLayout({
         <AdminNotifications />
       </header>
 
-      <main className="ml-0 md:ml-64 pt-16 min-h-screen min-w-0 bg-white">
+      <main className="ml-0 md:ml-64 pt-16 min-h-screen min-w-0 bg-background dark:bg-gray-950">
         {children}
       </main>
 

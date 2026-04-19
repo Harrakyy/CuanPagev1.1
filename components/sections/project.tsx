@@ -1,4 +1,5 @@
 "use client"
+import NextImage from "next/image"
 
 import { motion } from "framer-motion"
 import { ExternalLink } from "lucide-react"
@@ -10,6 +11,7 @@ const projects = [
     title: "E-Commerce Platform",
     description: "Platform e-commerce modern dengan sistem pembayaran terintegrasi.",
     tech: ["Next.js", "Stripe", "Tailwind"],
+    image: "/n1.png",
   },
   {
     number: "02",
@@ -63,11 +65,23 @@ export function ProjectSection() {
               viewport={{ once: true }}
               transition={{ delay: index * 0.1, duration: 0.5 }}
             >
-              <div className="aspect-video bg-gradient-to-br from-muted to-muted/50 flex items-center justify-center">
+          <div className="aspect-video relative overflow-hidden bg-muted">
+            {project.image ? (
+              <NextImage
+                src={project.image}
+                alt={project.title}
+                width={800}
+                height={450}
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              />
+            ) : (
+              <div className="w-full h-full bg-gradient-to-br from-muted to-muted/50 flex items-center justify-center">
                 <span className="text-4xl font-bold text-muted-foreground/30">
                   {project.number}
                 </span>
               </div>
+            )}
+          </div>
               <div className="p-6">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs uppercase tracking-wider text-muted-foreground">

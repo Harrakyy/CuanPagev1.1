@@ -248,7 +248,7 @@ const handlePrint = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 overflow-hidden">
         {/* Form */}
         <div className="space-y-4 md:space-y-6">
-          <Card className="bg-white dark:bg-gray-900 border rounded-xl overflow-hidden">
+          <Card className="bg-white dark:bg-gray-950 border rounded-xl overflow-hidden">
             <CardHeader>
               <CardTitle className="text-lg">Detail Invoice</CardTitle>
             </CardHeader>
@@ -345,7 +345,7 @@ const handlePrint = () => {
             </CardContent>
           </Card>
 
-          <Card className="bg-white dark:bg-gray-900 border rounded-xl">
+          <Card className="bg-white dark:bg-gray-950 border rounded-xl">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-lg">Item</CardTitle>
               <Button variant="outline" size="sm" onClick={addLineItem}>
@@ -433,7 +433,7 @@ const handlePrint = () => {
             </CardContent>
           </Card>
 
-          <Card className="bg-white dark:bg-gray-900 border rounded-xl">
+          <Card className="bg-white dark:bg-gray-950 border rounded-xl">
             <CardHeader>
               <CardTitle className="text-lg">Catatan / Syarat Pembayaran</CardTitle>
             </CardHeader>
@@ -479,12 +479,12 @@ const handlePrint = () => {
         </div>
 
         {/* Preview */}
-        <Card className="bg-white dark:bg-gray-900 border rounded-xl sticky top-6 print-container">
+        <Card className="bg-white dark:bg-gray-950 border rounded-xl sticky top-6 print-container">
           <CardHeader className="print-hidden">
             <CardTitle className="text-lg">Preview Invoice</CardTitle>
           </CardHeader>
           <CardContent className="print-invoice-content">
-            <div id="invoice-card" className="border rounded-lg p-6 bg-white dark:bg-gray-950 print:border-0 print:p-0">
+            <div id="invoice-card" className="border rounded-lg p-6 dark:bg-gray-950 print:border-0 print:p-0">
               {/* Invoice Header */}
               <div className="flex justify-between items-start mb-8">
                 <div>

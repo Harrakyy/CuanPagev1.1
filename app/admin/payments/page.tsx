@@ -299,12 +299,12 @@ export default function PaymentsPage() {
                       <p className="text-sm text-muted-foreground">
                         {item.customerName}
                       </p>
-                      <p className="text-xl font-bold text-black">
+                      <p className="text-xl font-bold text-foreground">
                         {formatRupiah(item.balance)}
                       </p>
                     </div>
                     <div className="p-2 bg-black/5 rounded-lg">
-                      <DollarSign className="h-5 w-5 text-black" />
+                      <DollarSign className="h-5 w-5 text-foreground" />
                     </div>
                   </div>
                 </CardContent>
