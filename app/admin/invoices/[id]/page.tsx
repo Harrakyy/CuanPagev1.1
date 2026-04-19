@@ -227,7 +227,7 @@ export default function InvoiceDetailPage() {
   const grandTotal = invoice.total || subtotal + taxAmount
 
   return (
-    <div className="p-6">
+    <div className="p-4 md:p-6 overflow-hidden">
       <div className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" asChild>
@@ -245,9 +245,9 @@ export default function InvoiceDetailPage() {
         </Badge>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 overflow-hidden">
         {/* Invoice Preview */}
-        <Card className="lg:col-span-2 bg-white dark:bg-gray-900 border rounded-xl">
+        <Card className="lg:col-span-2 bg-white dark:bg-gray-900 border rounded-xl overflow-hidden">
           <CardContent className="p-8">
             <div id="invoice-card" className="border rounded-lg p-8 bg-white dark:bg-gray-950">
               {/* Invoice Header */}
@@ -349,8 +349,8 @@ export default function InvoiceDetailPage() {
         </Card>
 
         {/* Actions */}
-        <div className="space-y-4">
-          <Card className="bg-white dark:bg-gray-900 border rounded-xl">
+        <div className="space-y-4 overflow-hidden">
+          <Card className="bg-white dark:bg-gray-900 border rounded-xl overflow-hidden">
             <CardHeader>
               <CardTitle className="text-lg">Aksi</CardTitle>
             </CardHeader>

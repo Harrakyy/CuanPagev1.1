@@ -232,7 +232,7 @@ const handlePrint = () => {
 }
 
   return (
-    <div className="p-6">
+    <div className="p-4 md:p-6 overflow-hidden">
       <div className="flex items-center gap-4 mb-8">
         <Button variant="ghost" size="icon" asChild>
           <Link href="/admin/invoices">
@@ -245,10 +245,10 @@ const handlePrint = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 overflow-hidden">
         {/* Form */}
-        <div className="space-y-6">
-          <Card className="bg-white dark:bg-gray-900 border rounded-xl">
+        <div className="space-y-4 md:space-y-6">
+          <Card className="bg-white dark:bg-gray-900 border rounded-xl overflow-hidden">
             <CardHeader>
               <CardTitle className="text-lg">Detail Invoice</CardTitle>
             </CardHeader>
@@ -446,13 +446,13 @@ const handlePrint = () => {
             </CardContent>
           </Card>
 
-          <div className="flex gap-3">
-            <Button variant="outline" className="flex-1">
-              <Save className="h-4 w-4 mr-2" />
-              Simpan Draft
+          <div className="flex flex-col sm:flex-row gap-3 overflow-hidden">
+            <Button variant="outline" className="w-full sm:flex-1 overflow-hidden">
+              <Save className="h-4 w-4 mr-2 shrink-0" />
+              <span className="truncate">Simpan Draft</span>
             </Button>
             <Button 
-              className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white"
+              className="w-full sm:flex-1 bg-indigo-600 hover:bg-indigo-700 text-white overflow-hidden"
               onClick={handleSendToCustomer}
               disabled={isSending}
             >
