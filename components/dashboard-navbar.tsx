@@ -5,7 +5,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
   Moon, Sun, LogOut, ChevronDown,
-  LayoutDashboard, ShoppingBag, FileText, MessageSquare, Sparkles, Bell,
+  LayoutDashboard, ShoppingBag, FileText, MessageSquare, Sparkles, Bell, CreditCard,
 } from "lucide-react"
 import { useTheme } from "next-themes"
 import { useAuth } from "@/contexts/auth-context"
@@ -27,6 +27,7 @@ const navLinks = [
   { href: "/dashboard/layanan", label: "Layanan", icon: Sparkles },
   { href: "/dashboard/pesanan", label: "Pesanan", icon: ShoppingBag },
   { href: "/dashboard/invoice", label: "Invoice", icon: FileText },
+  { href: "/dashboard/pembayaran", label: "Pembayaran", icon: CreditCard },
   { href: "/dashboard/pesan", label: "Pesan", icon: MessageSquare },
 ]
 

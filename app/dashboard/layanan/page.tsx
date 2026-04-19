@@ -28,7 +28,7 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
-import { getActiveServices, createOrder, type Service } from "@/lib/supabase/queries"
+import { getActiveServices, createOrder, notifyAdminsOfNewOrder, type Service } from "@/lib/supabase/queries"
 import { useAuth } from "@/contexts/auth-context"
 
 const SERVICE_ICONS: Record<string, React.ReactNode> = {
@@ -91,12 +91,14 @@ export default function LayananPage() {
     if (!user || !selectedService) return
     setIsSubmitting(true)
     try {
-      await createOrder({
+      const order = await createOrder({
         customer_id: user.id,
         service_id: selectedService.id,
         deadline: deadline || undefined,
         internal_notes: notes || undefined,
       })
+      // Notify all admins of new order
+      await notifyAdminsOfNewOrder(order)
       setIsDialogOpen(false)
       toast.success("Pesanan berhasil dikirim! Admin akan segera menghubungi kamu.", {
         duration: 5000,

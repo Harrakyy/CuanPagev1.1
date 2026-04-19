@@ -115,6 +115,7 @@ export interface Notification {
   id: string
   user_id: string
   type: string
+  title: string
   message: string
   is_read: boolean
   created_at: string
@@ -214,6 +215,15 @@ export async function updateService(id: string, updates: Partial<Service>) {
   return data as Service
 }
 
+export async function deleteService(id: string) {
+  const supabase = createClient()
+  const { error } = await supabase
+    .from("services")
+    .delete()
+    .eq("id", id)
+  if (error) throw error
+}
+
 // ============ ORDERS ============
 
 export async function getOrders() {
@@ -278,10 +288,12 @@ export async function createOrder(order: {
   internal_notes?: string
 }) {
   const supabase = createClient()
-  const { count } = await supabase
-    .from("orders")
-    .select("*", { count: "exact", head: true })
-  const orderNumber = `CP-${String((count || 0) + 1).padStart(3, "0")}`
+
+  // Pakai timestamp + random, bebas dari RLS issue pada count
+  const timestamp = Date.now().toString().slice(-6)
+  const random = Math.floor(Math.random() * 100).toString().padStart(2, "0")
+  const orderNumber = `CP-${timestamp}${random}`
+
   const { data, error } = await supabase
     .from("orders")
     .insert({
@@ -292,6 +304,7 @@ export async function createOrder(order: {
     })
     .select()
     .single()
+
   if (error) throw error
   return data as Order
 }
@@ -445,7 +458,7 @@ export async function getInvoiceById(id: string) {
 }
 
 export async function createInvoice(invoice: {
-  order_id: string
+  order_id?: string | null
   customer_id: string
   subtotal: number
   tax_percent: number
@@ -455,26 +468,32 @@ export async function createInvoice(invoice: {
   items: { nama_layanan: string; qty: number; harga_satuan: number; subtotal: number }[]
 }) {
   const supabase = createClient()
+  const currentYear = new Date().getFullYear()
   const { count } = await supabase
     .from("invoices")
     .select("*", { count: "exact", head: true })
-  const invoiceNumber = `INV-${String((count || 0) + 1).padStart(3, "0")}`
+
+  const invoiceNumber = `INV-${currentYear}-${String((count || 0) + 1).padStart(3, "0")}`
+  const insertData: any = {
+    invoice_number: invoiceNumber,
+    customer_id: invoice.customer_id,
+    subtotal: invoice.subtotal,
+    tax_percent: invoice.tax_percent,
+    total: invoice.total,
+    due_date: invoice.due_date,
+    notes: invoice.notes,
+    status: "unpaid",
+  }
+  if (invoice.order_id) {
+    insertData.order_id = invoice.order_id
+  }
   const { data: invoiceData, error: invoiceError } = await supabase
     .from("invoices")
-    .insert({
-      invoice_number: invoiceNumber,
-      order_id: invoice.order_id,
-      customer_id: invoice.customer_id,
-      subtotal: invoice.subtotal,
-      tax_percent: invoice.tax_percent,
-      total: invoice.total,
-      due_date: invoice.due_date,
-      notes: invoice.notes,
-      status: "unpaid",
-    })
+    .insert(insertData)
     .select()
     .single()
   if (invoiceError) throw invoiceError
+
   const items = invoice.items.map(item => ({
     ...item,
     invoice_id: invoiceData.id,
@@ -483,6 +502,15 @@ export async function createInvoice(invoice: {
     .from("invoice_items")
     .insert(items)
   if (itemsError) throw itemsError
+
+  // Notify customer — tanpa link
+  await createNotification({
+    user_id: invoice.customer_id,
+    type: "invoice",
+    title: "Invoice Baru",
+    message: `Invoice #${invoiceNumber} telah dikirim kepada Anda. Total: ${formatRupiah(invoice.total)}. Jatuh tempo: ${invoice.due_date}`,
+  })
+
   return invoiceData as Invoice
 }
 
@@ -530,11 +558,35 @@ export async function createPayment(payment: {
     .single()
   if (error) throw error
 
-  // Update invoice status to paid
+  const { data: invoice } = await supabase
+    .from("invoices")
+    .select("total")
+    .eq("id", payment.invoice_id)
+    .single()
+
+  const { data: payments } = await supabase
+    .from("payments")
+    .select("jumlah")
+    .eq("invoice_id", payment.invoice_id)
+
+  const totalPaid = (payments || []).reduce((sum, p) => sum + (p.jumlah || 0), 0)
+
+  let newStatus = "unpaid"
+  if (invoice && totalPaid >= invoice.total) {
+    newStatus = "paid"
+  } else if (invoice && totalPaid > 0) {
+    newStatus = "partial"
+  }
+
   await supabase
     .from("invoices")
-    .update({ status: "paid", paid_at: new Date().toISOString() })
+    .update({
+      status: newStatus,
+      paid_at: newStatus === "paid" ? new Date().toISOString() : null,
+    })
     .eq("id", payment.invoice_id)
+
+  await notifyCustomerOfPayment(payment.invoice_id, payment.jumlah)
 
   return data as Payment
 }
@@ -637,19 +689,91 @@ export async function markAllNotificationsAsRead(userId: string) {
   if (error) throw error
 }
 
+// Tanpa field link — kolom link tidak ada di tabel notifications
 export async function createNotification(notification: {
   user_id: string
   type: string
+  title: string
   message: string
 }) {
   const supabase = createClient()
   const { data, error } = await supabase
     .from("notifications")
-    .insert({ ...notification, is_read: false })
+    .insert(notification)
     .select()
     .single()
-  if (error) throw error
+  if (error) {
+    console.error("createNotification error:", JSON.stringify(error))
+    throw error
+  }
   return data as Notification
+}
+
+export async function notifyAdminsOfNewOrder(orderInput: Order) {
+  const supabase = createClient()
+  const { data: admins, error: adminError } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("role", "admin")
+  if (adminError || !admins || admins.length === 0) return
+
+  const { data: order } = await supabase
+    .from("orders")
+    .select(`
+      *,
+      customer:profiles!orders_customer_id_fkey(full_name, email),
+      service:services(nama)
+    `)
+    .eq("id", orderInput.id)
+    .single()
+
+  const orderData = order || orderInput
+
+  // Tanpa field link
+  const notifications = admins.map(admin => ({
+    user_id: admin.id,
+    type: "new_order",
+    title: "Pesanan Baru",
+    message: `Pesanan baru masuk dari ${orderData.customer?.full_name || orderData.customer?.email || "Pelanggan"} untuk layanan ${orderData.service?.nama || "Layanan"}.`,
+  }))
+
+  const { error } = await supabase.from("notifications").insert(notifications)
+  if (error) console.error("Failed to notify admins:", error)
+}
+
+export async function notifyCustomerOfPayment(invoiceId: string, amount: number) {
+  const supabase = createClient()
+  const { data: invoice, error } = await supabase
+    .from("invoices")
+    .select("id, invoice_number, customer_id")
+    .eq("id", invoiceId)
+    .single()
+  if (error || !invoice) return
+  await createNotification({
+    user_id: invoice.customer_id,
+    type: "payment",
+    title: "Pembayaran Diterima",
+    message: `Pembayaran sebesar Rp ${amount.toLocaleString("id-ID")} untuk Invoice #${invoice.invoice_number} telah berhasil dicatat oleh admin. Terima kasih!`,
+  })
+}
+
+export async function getPaymentsByCustomer(customerId: string) {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from("payments")
+    .select(`
+      *,
+      invoice:invoices(
+        id,
+        invoice_number,
+        total,
+        status
+      )
+    `)
+    .eq("customer_id", customerId)
+    .order("created_at", { ascending: false })
+  if (error) throw error
+  return data as Payment[]
 }
 
 // ============ PROFILES / CUSTOMERS ============
@@ -663,6 +787,30 @@ export async function getCustomers() {
     .order("created_at", { ascending: false })
   if (error) throw error
   return data as Profile[]
+}
+
+export async function getAdmins() {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id, email, full_name")
+    .eq("role", "admin")
+  if (error) throw error
+  return data as Profile[]
+}
+
+export async function getOrdersForInvoice() {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from("orders")
+    .select(`
+      *,
+      customer:profiles!orders_customer_id_fkey(id, full_name, email),
+      service:services(*)
+    `)
+    .order("created_at", { ascending: false })
+  if (error) throw error
+  return data as Order[]
 }
 
 export async function getProfileById(id: string) {
@@ -718,7 +866,7 @@ export async function getAdminDashboardStats() {
     .from("messages")
     .select("*", { count: "exact", head: true })
     .eq("is_read", false)
-    .is("sender_id", null) // messages from customers have no sender_id (or adjust as needed)
+    .is("sender_id", null)
 
   const totalRevenue = payments?.reduce((sum, p) => sum + (p.jumlah || 0), 0) || 0
 
@@ -779,6 +927,4 @@ export async function getMonthlyRevenue(year: number = new Date().getFullYear())
       ?.filter(p => new Date(p.created_at).getMonth() === i)
       .reduce((sum, p) => sum + (p.jumlah || 0), 0) || 0,
   }))
-
-  
 }

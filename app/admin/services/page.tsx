@@ -27,9 +27,9 @@ import {
 } from "@/components/ui/dialog"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Spinner } from "@/components/ui/spinner"
-import { Plus, Edit, Package } from "lucide-react"
+import { Plus, Edit, Package, Trash2 } from "lucide-react"
 import { toast } from "sonner"
-import { getServices, createService, updateService, formatRupiah, type Service } from "@/lib/supabase/queries"
+import { getServices, createService, updateService, deleteService, formatRupiah, type Service } from "@/lib/supabase/queries"
 
 function TableSkeleton() {
   return (
@@ -55,6 +55,10 @@ export default function ServicesPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [services, setServices] = useState<Service[]>([])
+  
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [serviceToDelete, setServiceToDelete] = useState<Service | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
   
   // Form state
   const [formData, setFormData] = useState({
@@ -107,7 +111,7 @@ export default function ServicesPage() {
     setIsDialogOpen(true)
   }
 
-  const handleSave = async () => {
+const handleSave = async () => {
     setIsSaving(true)
     try {
       if (editingService) {
@@ -118,7 +122,7 @@ export default function ServicesPage() {
           ...formData,
           current_slots: 0,
         })
-        toast.success("Layanan baru berhasil ditambahkan")
+        toast.success("layanan baru berhasil ditambahkan")
       }
       setIsDialogOpen(false)
       loadServices()
@@ -127,6 +131,28 @@ export default function ServicesPage() {
       toast.error("Gagal menyimpan layanan")
     } finally {
       setIsSaving(false)
+    }
+  }
+
+  const handleDeleteClick = (service: Service) => {
+    setServiceToDelete(service)
+    setDeleteDialogOpen(true)
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!serviceToDelete) return
+    setIsDeleting(true)
+    try {
+      await deleteService(serviceToDelete.id)
+      setServices(services.filter(s => s.id !== serviceToDelete.id))
+      toast.success(`Layanan ${serviceToDelete.nama} berhasil dihapus`)
+      setDeleteDialogOpen(false)
+      setServiceToDelete(null)
+    } catch (error) {
+      console.error("Error deleting service:", error)
+      toast.error("Gagal menghapus layanan")
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -252,10 +278,20 @@ export default function ServicesPage() {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button variant="ghost" size="sm" onClick={() => handleEdit(service)}>
-                        <Edit className="h-4 w-4 mr-1" />
-                        Edit
-                      </Button>
+                      <div className="flex items-center justify-end gap-2">
+                        <Button variant="ghost" size="sm" onClick={() => handleEdit(service)}>
+                          <Edit className="h-4 w-4 mr-1" />
+                          Edit
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          onClick={() => handleDeleteClick(service)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -348,6 +384,29 @@ export default function ServicesPage() {
               disabled={isSaving || !formData.nama}
             >
               {isSaving ? <><Spinner className="mr-2" />Menyimpan...</> : editingService ? "Simpan Perubahan" : "Tambah Layanan"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Hapus Layanan</DialogTitle>
+            <DialogDescription>
+              Apakah Anda yakin ingin menghapus layanan {serviceToDelete?.nama}? Tindakan ini tidak dapat dibatalkan.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)} disabled={isDeleting}>
+              Batal
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmDelete}
+              disabled={isDeleting}
+            >
+              {isDeleting ? "Menghapus..." : "Hapus"}
             </Button>
           </DialogFooter>
         </DialogContent>

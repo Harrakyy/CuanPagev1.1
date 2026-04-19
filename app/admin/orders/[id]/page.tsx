@@ -173,6 +173,17 @@ export default function OrderDetailPage() {
     try {
       const updated = await approveOrder(orderId, user.id)
       setOrder((prev) => prev ? { ...prev, ...updated } : prev)
+      
+      // Notify customer of approval
+      if (order?.customer_id && order.service?.nama) {
+        await createNotification({
+          user_id: order.customer_id,
+          type: "order_approved",
+          title: "Pesanan Disetujui",
+          message: `Pesanan kamu untuk layanan ${order.service.nama} telah disetujui! Kami akan segera mulai mengerjakan.`,
+        })
+      }
+      
       toast.success("Pesanan di-approve")
     } catch {
       toast.error("Gagal approve pesanan")
@@ -191,6 +202,17 @@ export default function OrderDetailPage() {
     try {
       const updated = await rejectOrder(orderId, user.id, rejectReason.trim())
       setOrder((prev) => prev ? { ...prev, ...updated } : prev)
+      
+      // Notify customer of rejection
+      if (order?.customer_id && order.service?.nama) {
+        await createNotification({
+          user_id: order.customer_id,
+          type: "order_rejected",
+          title: "Pesanan Ditolak",
+          message: `Pesanan kamu untuk layanan ${order.service.nama} tidak dapat kami proses saat ini. Silakan hubungi kami untuk informasi lebih lanjut.`,
+        })
+      }
+      
       toast.success("Pesanan di-reject")
       setRejectReason("")
     } catch {
@@ -241,7 +263,9 @@ export default function OrderDetailPage() {
       await createNotification({
         user_id: order.customer_id,
         type: "order_update",
+        title: "Update Proyek",
         message: `Update untuk pesanan ${order?.order_number}: ${customerUpdate.trim()}`,
+        link: `/track/${order?.order_number}`,
       })
       setTimeline((prev) => [update, ...prev])
       setCustomerUpdate("")

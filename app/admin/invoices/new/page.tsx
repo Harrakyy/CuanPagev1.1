@@ -31,8 +31,10 @@ import {
   Send,
   Download,
   FileText,
+  Loader2,
 } from "lucide-react"
-import { getCustomers, getActiveServices, type Profile, type Service } from "@/lib/supabase/queries"
+import { toast } from "sonner"
+import { getCustomers, getActiveServices, getOrdersForInvoice, createInvoice, createNotification, type Profile, type Service, type Order } from "@/lib/supabase/queries"
 
 interface LineItem {
   id: number
@@ -44,7 +46,9 @@ interface LineItem {
 export default function NewInvoicePage() {
   const [customers, setCustomers] = useState<Profile[]>([])
   const [services, setServices] = useState<Service[]>([])
+  const [orders, setOrders] = useState<Order[]>([])
   const [selectedCustomer, setSelectedCustomer] = useState("")
+  const [selectedOrder, setSelectedOrder] = useState("")
   const [selectedService, setSelectedService] = useState("")
   const [dueDate, setDueDate] = useState("")
   const [taxRate, setTaxRate] = useState(11)
@@ -52,24 +56,45 @@ export default function NewInvoicePage() {
   const [lineItems, setLineItems] = useState<LineItem[]>([
     { id: 1, description: "", qty: 1, price: 0 },
   ])
-
-  const invoiceNumber = "CP-2024-009" // Would be auto-generated
+  const [isSending, setIsSending] = useState(false)
+  
+  // Auto-generate invoice number for preview (will be regenerated on actual save)
+  const currentYear = new Date().getFullYear()
+  const previewInvoiceNumber = `INV-${currentYear}-001`
 
   useEffect(() => {
     async function loadData() {
       try {
-        const [customersData, servicesData] = await Promise.all([
+        const [customersData, servicesData, ordersData] = await Promise.all([
           getCustomers(),
           getActiveServices(),
+          getOrdersForInvoice(),
         ])
         setCustomers(customersData)
         setServices(servicesData)
+        setOrders(ordersData)
       } catch (error) {
         console.error("Error loading data:", error)
       }
     }
     loadData()
   }, [])
+
+  const handleOrderSelect = (orderId: string) => {
+    const order = orders.find(o => o.id === orderId)
+    setSelectedOrder(orderId)
+    if (order) {
+      setSelectedCustomer(order.customer_id || "")
+      setLineItems([
+        { 
+          id: 1, 
+          description: order.service?.nama || "", 
+          qty: 1, 
+          price: order.service?.harga || order.price || 0 
+        },
+      ])
+    }
+  }
 
   const handleServiceSelect = (serviceId: string) => {
     const service = services.find(s => s.id === serviceId)
@@ -116,6 +141,53 @@ export default function NewInvoicePage() {
 
   const selectedCustomerData = customers.find((c) => c.id === selectedCustomer)
 
+const handleSendToCustomer = async () => {
+  if (!selectedCustomer) {
+    toast.error("Pilih pelanggan terlebih dahulu")
+    return
+  }
+  if (!dueDate) {
+    toast.error("Pilih tanggal jatuh tempo")
+    return
+  }
+  if (lineItems.every(item => !item.description || item.price === 0)) {
+    toast.error("Isi setidaknya satu item layanan")
+    return
+  }
+  
+  setIsSending(true)
+  try {
+    const items = lineItems
+      .filter(item => item.description && item.price > 0)
+      .map(item => ({
+        nama_layanan: item.description,
+        qty: item.qty,
+        harga_satuan: item.price,
+        subtotal: item.qty * item.price,
+      }))
+    
+    await createInvoice({
+      order_id: selectedOrder || null,
+      customer_id: selectedCustomer,
+      subtotal,
+      tax_percent: taxRate,
+      total: grandTotal,
+      due_date: dueDate,
+      notes: notes || undefined,
+      items,
+    })
+    
+    toast.success("Invoice berhasil dikirim ke pelanggan")
+    // Redirect to invoices list after success
+    window.location.href = "/admin/invoices"
+  } catch (error) {
+    console.error("Error sending invoice:", error)
+    toast.error("Gagal mengirim invoice")
+  } finally {
+    setIsSending(false)
+  }
+}
+
 const handlePrint = () => {
   const printContents = document.getElementById("invoice-card")?.innerHTML
   if (!printContents) return
@@ -127,7 +199,7 @@ const handlePrint = () => {
     <!DOCTYPE html>
     <html>
       <head>
-        <title>Invoice ${invoiceNumber}</title>
+        <title>Invoice INV-${currentYear}-XXX</title>
         <style>
           * { margin: 0; padding: 0; box-sizing: border-box; }
           body { font-family: sans-serif; padding: 40px; color: #111; }
@@ -169,7 +241,7 @@ const handlePrint = () => {
         </Button>
         <div>
           <h1 className="text-2xl font-bold text-foreground">Buat Invoice Baru</h1>
-          <p className="text-muted-foreground">No. Invoice: {invoiceNumber}</p>
+          <p className="text-muted-foreground">No. Invoice: INV-{currentYear}-XXX</p>
         </div>
       </div>
 
@@ -183,7 +255,7 @@ const handlePrint = () => {
             <CardContent className="space-y-4">
               <div>
                 <Label>Pelanggan</Label>
-                <Select value={selectedCustomer} onValueChange={setSelectedCustomer}>
+                <Select value={selectedCustomer} onValueChange={(v) => { setSelectedCustomer(v); setSelectedOrder(""); }}>
                   <SelectTrigger className="w-full mt-1">
                     <SelectValue placeholder="Pilih pelanggan..." />
                   </SelectTrigger>
@@ -204,10 +276,35 @@ const handlePrint = () => {
               </div>
 
               <div>
-                <Label>Layanan</Label>
+                <Label>Pesanan (Opsional)</Label>
+                <Select value={selectedOrder} onValueChange={handleOrderSelect}>
+                  <SelectTrigger className="w-full mt-1">
+                    <SelectValue placeholder="Pilih pesanan..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {orders.length === 0 ? (
+                      <SelectItem value="empty" disabled>
+                        Belum ada pesanan
+                      </SelectItem>
+                    ) : (
+                      orders
+                        .filter(o => !selectedCustomer || o.customer_id === selectedCustomer)
+                        .filter(o => o.status !== "cancelled")
+                        .map((order) => (
+                          <SelectItem key={order.id} value={order.id}>
+                            {order.order_number} - {order.service?.nama || "Layanan"} ({order.customer?.full_name || order.customer?.email || "-"})
+                          </SelectItem>
+                        ))
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label>Atau Layanan (Manual)</Label>
                 <Select value={selectedService} onValueChange={handleServiceSelect}>
                   <SelectTrigger className="w-full mt-1">
-                    <SelectValue placeholder="Pilih layanan (opsional)..." />
+                    <SelectValue placeholder="Pilih layanan (alternatif)..." />
                   </SelectTrigger>
                   <SelectContent>
                     {services.length === 0 ? (
@@ -354,9 +451,22 @@ const handlePrint = () => {
               <Save className="h-4 w-4 mr-2" />
               Simpan Draft
             </Button>
-            <Button className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white">
-              <Send className="h-4 w-4 mr-2" />
-              Kirim ke Pelanggan
+            <Button 
+              className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white"
+              onClick={handleSendToCustomer}
+              disabled={isSending}
+            >
+              {isSending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Mengirim...
+                </>
+              ) : (
+                <>
+                  <Send className="h-4 w-4 mr-2" />
+                  Kirim ke Pelanggan
+                </>
+              )}
             </Button>
             <Button 
               variant="outline"
@@ -388,7 +498,7 @@ const handlePrint = () => {
                     <FileText className="h-5 w-5 text-indigo-600" />
                     <span className="font-bold text-lg">INVOICE</span>
                   </div>
-                  <p className="text-sm text-muted-foreground mt-1">{invoiceNumber}</p>
+                  <p className="text-sm text-muted-foreground mt-1">INV-{currentYear}-XXX</p>
                 </div>
               </div>
 
