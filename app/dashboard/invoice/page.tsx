@@ -3,6 +3,7 @@
 import * as React from "react"
 import { useState, useEffect } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { DashboardNavbar } from "@/components/dashboard-navbar"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -18,9 +19,9 @@ import {
 import { useAuth } from "@/contexts/auth-context"
 
 const invoiceStatusConfig: Record<string, { label: string; color: string; icon: React.ElementType }> = {
-  paid:    { label: "Lunas",        color: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",   icon: CheckCircle2 },
-  unpaid:  { label: "Belum Bayar",  color: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",           icon: AlertCircle },
-  partial: { label: "Sebagian",     color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",       icon: Clock },
+  paid:    { label: "Lunas",        color: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",     icon: CheckCircle2 },
+  unpaid:  { label: "Belum Bayar",  color: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",             icon: AlertCircle },
+  partial: { label: "Sebagian",     color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",         icon: Clock },
   overdue: { label: "Jatuh Tempo",  color: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400", icon: AlertCircle },
 }
 
@@ -42,6 +43,7 @@ function InvoiceSkeleton() {
 
 export default function InvoicePage() {
   const { user } = useAuth()
+  const router = useRouter()
   const [invoices, setInvoices] = useState<Invoice[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [filter, setFilter] = useState("semua")
@@ -62,10 +64,10 @@ export default function InvoicePage() {
   }, [user])
 
   const filters = [
-    { key: "semua", label: "Semua" },
+    { key: "semua",  label: "Semua" },
     { key: "unpaid", label: "Belum Bayar" },
-    { key: "paid", label: "Lunas" },
-    { key: "overdue", label: "Jatuh Tempo" },
+    { key: "paid",   label: "Lunas" },
+    { key: "overdue",label: "Jatuh Tempo" },
   ]
 
   const filteredInvoices = invoices.filter((inv) =>
@@ -80,6 +82,7 @@ export default function InvoicePage() {
     <div className="min-h-screen bg-background">
       <DashboardNavbar />
       <main className="container mx-auto px-4 sm:px-6 py-8">
+
         {/* Header */}
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-foreground">Invoice Saya</h1>
@@ -159,6 +162,7 @@ export default function InvoicePage() {
               const config = invoiceStatusConfig[invoice.status] || invoiceStatusConfig.unpaid
               const StatusIcon = config.icon
               const isPaid = invoice.status === "paid"
+
               return (
                 <div
                   key={invoice.id}
@@ -195,9 +199,7 @@ export default function InvoicePage() {
                       <p className="text-muted-foreground mb-0.5">Jatuh Tempo</p>
                       <p className={cn(
                         "font-medium",
-                        invoice.status === "overdue"
-                          ? "text-red-600"
-                          : "text-foreground"
+                        invoice.status === "overdue" ? "text-red-600" : "text-foreground"
                       )}>
                         {formatDate(invoice.due_date)}
                       </p>
@@ -210,14 +212,16 @@ export default function InvoicePage() {
                       variant="outline"
                       size="sm"
                       className="flex-1 rounded-xl h-9 text-xs gap-1.5"
+                      onClick={() => router.push(`/dashboard/invoice/${invoice.id}`)}
                     >
                       <Download className="h-3.5 w-3.5" />
-                      Download
+                      Download / Print
                     </Button>
                     {!isPaid && (
                       <Button
                         size="sm"
                         className="flex-1 rounded-xl h-9 text-xs bg-indigo-600 hover:bg-indigo-700 text-white gap-1.5"
+                        onClick={() => router.push(`/dashboard/invoice/${invoice.id}`)}
                       >
                         Konfirmasi Bayar
                       </Button>

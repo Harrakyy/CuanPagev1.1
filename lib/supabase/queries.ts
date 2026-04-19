@@ -117,6 +117,7 @@ export interface Notification {
   type: string
   title: string
   message: string
+  link: string | null
   is_read: boolean
   created_at: string
 }
@@ -289,7 +290,6 @@ export async function createOrder(order: {
 }) {
   const supabase = createClient()
 
-  // Pakai timestamp + random, bebas dari RLS issue pada count
   const timestamp = Date.now().toString().slice(-6)
   const random = Math.floor(Math.random() * 100).toString().padStart(2, "0")
   const orderNumber = `CP-${timestamp}${random}`
@@ -503,12 +503,12 @@ export async function createInvoice(invoice: {
     .insert(items)
   if (itemsError) throw itemsError
 
-  // Notify customer — tanpa link
   await createNotification({
     user_id: invoice.customer_id,
     type: "invoice",
     title: "Invoice Baru",
-    message: `Invoice #${invoiceNumber} telah dikirim kepada Anda. Total: ${formatRupiah(invoice.total)}. Jatuh tempo: ${invoice.due_date}`,
+    message: `Invoice #${invoiceNumber} telah dikirim. Total: ${formatRupiah(invoice.total)}. Jatuh tempo: ${invoice.due_date}`,
+    link: `/dashboard/invoice/${invoiceData.id}`,
   })
 
   return invoiceData as Invoice
@@ -689,17 +689,21 @@ export async function markAllNotificationsAsRead(userId: string) {
   if (error) throw error
 }
 
-// Tanpa field link — kolom link tidak ada di tabel notifications
+// link optional — null kalau tidak ada tujuan navigasi
 export async function createNotification(notification: {
   user_id: string
   type: string
   title: string
   message: string
+  link?: string | null
 }) {
   const supabase = createClient()
   const { data, error } = await supabase
     .from("notifications")
-    .insert(notification)
+    .insert({
+      ...notification,
+      link: notification.link ?? null,
+    })
     .select()
     .single()
   if (error) {
@@ -729,12 +733,12 @@ export async function notifyAdminsOfNewOrder(orderInput: Order) {
 
   const orderData = order || orderInput
 
-  // Tanpa field link
   const notifications = admins.map(admin => ({
     user_id: admin.id,
     type: "new_order",
     title: "Pesanan Baru",
     message: `Pesanan baru masuk dari ${orderData.customer?.full_name || orderData.customer?.email || "Pelanggan"} untuk layanan ${orderData.service?.nama || "Layanan"}.`,
+    link: `/admin/orders/${orderInput.id}`,
   }))
 
   const { error } = await supabase.from("notifications").insert(notifications)
@@ -753,7 +757,8 @@ export async function notifyCustomerOfPayment(invoiceId: string, amount: number)
     user_id: invoice.customer_id,
     type: "payment",
     title: "Pembayaran Diterima",
-    message: `Pembayaran sebesar Rp ${amount.toLocaleString("id-ID")} untuk Invoice #${invoice.invoice_number} telah berhasil dicatat oleh admin. Terima kasih!`,
+    message: `Pembayaran sebesar ${formatRupiah(amount)} untuk Invoice #${invoice.invoice_number} telah berhasil dicatat. Terima kasih!`,
+    link: `/dashboard/invoice/${invoiceId}`,  // ← pakai invoiceId langsung
   })
 }
 

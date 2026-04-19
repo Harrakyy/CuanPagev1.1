@@ -46,10 +46,14 @@ export default function NotificationsPage() {
     }
   }
 
-  const handleMarkOne = async (id: string) => {
+  const handleMarkOne = async (id: string, link?: string | null) => {
     try {
       await markNotificationAsRead(id)
       setItems((prev) => prev.map((n) => (n.id === id ? { ...n, is_read: true } : n)))
+      // Navigate ke link kalau ada
+      if (link) {
+        window.location.href = link
+      }
     } catch {
       // silent
     }
@@ -126,41 +130,49 @@ export default function NotificationsPage() {
         ) : (
           <div className="space-y-3">
             {items.map((n) => (
-              <button
-                key={n.id}
-                onClick={() => !n.is_read && handleMarkOne(n.id)}
-                className={cn(
-                  "w-full text-left border rounded-2xl p-4 transition-colors",
-                  n.is_read ? "border-border bg-card" : "border-foreground/20 bg-foreground/[0.03] hover:bg-foreground/[0.06]"
-                )}
-              >
-                <div className="flex items-start gap-3">
-                  <div
-                    className={cn(
-                      "h-9 w-9 rounded-xl flex items-center justify-center shrink-0",
-                      n.is_read ? "bg-muted" : "bg-foreground text-background"
-                    )}
-                  >
-                    {n.is_read ? (
-                      <Bell className="h-4 w-4 text-muted-foreground" />
-                    ) : (
-                      <CheckCircle2 className="h-4 w-4" />
-                    )}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-foreground leading-snug">
-                      {n.message}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {formatDate(n.created_at)}
-                    </p>
-                  </div>
-                  {!n.is_read && (
-                    <span className="h-2 w-2 rounded-full bg-foreground mt-2 shrink-0" />
-                  )}
-                </div>
-              </button>
-            ))}
+        <button
+          key={n.id}
+          onClick={() => handleMarkOne(n.id, n.link)}  // ← pass n.link
+          className={cn(
+            "w-full text-left border rounded-2xl p-4 transition-colors",
+            n.is_read ? "border-border bg-card" : "border-foreground/20 bg-foreground/[0.03] hover:bg-foreground/[0.06]",
+            n.link && "cursor-pointer"  // ← tunjukkan kalau bisa diklik
+          )}
+        >
+          <div className="flex items-start gap-3">
+            <div
+              className={cn(
+                "h-9 w-9 rounded-xl flex items-center justify-center shrink-0",
+                n.is_read ? "bg-muted" : "bg-foreground text-background"
+              )}
+            >
+              {n.is_read ? (
+                <Bell className="h-4 w-4 text-muted-foreground" />
+              ) : (
+                <CheckCircle2 className="h-4 w-4" />
+              )}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-foreground leading-snug">
+                {n.title && <span className="font-semibold">{n.title} — </span>}
+                {n.message}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {formatDate(n.created_at)}
+              </p>
+              {/* Tampilkan hint kalau ada link */}
+              {n.link && (
+                <p className="text-xs text-foreground/50 mt-0.5">
+                  Klik untuk melihat →
+                </p>
+              )}
+            </div>
+            {!n.is_read && (
+              <span className="h-2 w-2 rounded-full bg-foreground mt-2 shrink-0" />
+            )}
+          </div>
+        </button>
+))}
           </div>
         )}
       </main>
