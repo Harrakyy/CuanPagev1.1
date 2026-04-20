@@ -247,7 +247,7 @@ export default function ReportsPage() {
                   <Line
                     type="monotone"
                     dataKey="revenue"
-                    stroke="#000000"
+                    stroke=" #ADFF2F"
                     strokeWidth={2}
                     dot={{ fill: "#000000", strokeWidth: 2 }}
                   />
