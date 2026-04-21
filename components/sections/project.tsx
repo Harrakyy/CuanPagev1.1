@@ -8,17 +8,18 @@ const projects = [
   {
     number: "01",
     category: "Web Development",
-    title: "E-Commerce Platform",
+    title: "Web Layanan Jasa",
     description: "Platform e-commerce modern dengan sistem pembayaran terintegrasi.",
     tech: ["Next.js", "Stripe", "Tailwind"],
     image: "/n1.png",
   },
   {
     number: "02",
-    category: "Web Design",
-    title: "Company Profile",
-    description: "Website company profile profesional dengan animasi interaktif.",
-    tech: ["React", "Framer Motion", "GSAP"],
+    category: "Integrated Manufacturing Systems",
+    title: "Web Custom",
+    description: "Sistem internal tracking perusahaan manufaktur mesin.",
+    tech: ["Laravel", "Vite", "SQL"],
+    image: "/n2.png",
   },
   {
     number: "03",
