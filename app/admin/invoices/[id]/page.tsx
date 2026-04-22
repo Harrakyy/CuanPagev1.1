@@ -109,7 +109,6 @@ export default function InvoiceDetailPage() {
     if (!invoice) return
     setIsSending(true)
     try {
-      // Already created when invoice was created, but can resend
       toast.success("Invoice sudah dikirim ke customer sebelumnya")
     } catch (error) {
       console.error("Error sending invoice:", error)
@@ -135,52 +134,56 @@ export default function InvoiceDetailPage() {
             * { margin: 0; padding: 0; box-sizing: border-box; }
             body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 40px; color: #111; background: #fff; }
             table { width: 100%; border-collapse: collapse; margin-bottom: 2rem; }
-            th { text-align: left; padding: 8px 0; font-size: 13px; border-bottom: 1px solid #ddd; }
-            td { padding: 8px 0; font-size: 13px; }
-            .text-right { text-align: right; }
-            .text-muted { color: #6b7280; }
-            .font-bold { font-weight: 700; }
-            .border-t { border-top: 1px solid #ddd; padding-top: 8px; }
-            .flex-between { display: flex; justify-content: space-between; margin-bottom: 2rem; }
-            .totals { text-align: right; margin-bottom: 2rem; }
-            .totals div { display: flex; justify-content: flex-end; gap: 4rem; margin-bottom: 4px; }
-            .notes { border-top: 1px solid #ddd; padding-top: 1rem; }
-            pre { white-space: pre-wrap; font-family: sans-serif; font-size: 13px; }
+            th { text-align: left; padding: 10px 0; font-size: 13px; border-bottom: 2px solid #ddd; font-weight: 600; }
+            td { padding: 10px 0; font-size: 13px; }
+            svg { display: none; }
             h2 { font-size: 24px; font-weight: 700; margin-bottom: 4px; }
-            .invoice-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 32px; }
-            .invoice-number { text-align: right; }
-            .invoice-number h3 { font-size: 18px; font-weight: 700; }
-            .bill-to { display: flex; justify-content: space-between; margin-bottom: 32px; }
-            .bill-to div { width: 45%; }
-            .bill-to div:last-child { text-align: right; }
+
+            /* Flex & Grid */
+            .flex { display: flex; }
+            .grid { display: grid; }
+            .grid-cols-2 { grid-template-columns: 1fr 1fr; }
+            .justify-between { justify-content: space-between; }
+            .justify-end { justify-content: flex-end; }
+            .items-start { align-items: flex-start; }
+            .items-center { align-items: center; }
+
+            /* Spacing */
+            .gap-2 { gap: 0.5rem; }
+            .gap-8 { gap: 2rem; }
+            .mb-1 { margin-bottom: 0.25rem; }
+            .mb-8 { margin-bottom: 2rem; }
+            .mt-1 { margin-top: 0.25rem; }
+            .pt-2 { padding-top: 0.5rem; }
+            .pt-4 { padding-top: 1rem; }
+            .py-3 { padding-top: 0.75rem; padding-bottom: 0.75rem; }
+            .space-y-2 > * + * { margin-top: 0.5rem; }
+
+            /* Typography */
+            .text-sm { font-size: 13px; }
+            .text-lg { font-size: 1.125rem; }
+            .text-2xl { font-size: 1.5rem; }
+            .font-bold { font-weight: 700; }
+            .font-medium { font-weight: 500; }
+            .text-right { text-align: right; }
+            .text-muted-foreground { color: #6b7280; }
+            .whitespace-pre-line { white-space: pre-line; }
+
+            /* Borders */
+            .border-b { border-bottom: 1px solid #e5e7eb; }
+            .border-t { border-top: 1px solid #e5e7eb; }
+
+            /* Width - KUNCI FIX TOTALS */
+            .w-32 { width: 10rem; text-align: right; flex-shrink: 0; }
+
+            /* Strip card styling untuk print */
+            .border { border: none !important; }
+            .rounded-lg { border-radius: 0 !important; }
+            .p-8 { padding: 0 !important; }
+            .bg-white { background: #fff !important; }
           </style>
         </head>
         <body>
-          <div class="invoice-header">
-            <div>
-              <h2>CuanPage.</h2>
-              <p class="text-muted">Jasa Pembuatan Website Professional</p>
-              <p class="text-muted">hello@cuanpage.com | +62 812-3456-7890</p>
-            </div>
-            <div class="invoice-number">
-              <div class="flex items-center gap-2 justify-end" style="display:flex;align-items:center;gap:8px;justify-content:flex-end;">
-                <FileText className="h-5 w-5 text-indigo-600" />
-                <span class="font-bold" style="font-weight:700;font-size:18px;">INVOICE</span>
-              </div>
-              <p class="text-muted" style="margin-top:4px;">${invoice?.invoice_number || ""}</p>
-            </div>
-          </div>
-          <div class="bill-to">
-            <div>
-              <p class="text-muted" style="font-size:13px;margin-bottom:4px;">Kepada:</p>
-              <p class="font-bold" style="font-weight:700;">${invoice?.customer?.full_name || invoice?.customer?.email || "-"}</p>
-              <p class="text-muted" style="font-size:13px;">${invoice?.customer?.email || ""}</p>
-            </div>
-            <div>
-              <p class="text-muted" style="font-size:13px;margin-bottom:4px;">Jatuh Tempo:</p>
-              <p class="font-bold" style="font-weight:700;">${invoice?.due_date ? formatDate(invoice.due_date) : "-"}</p>
-            </div>
-          </div>
           ${printContents}
         </body>
       </html>
@@ -231,7 +234,7 @@ export default function InvoiceDetailPage() {
 
   const invoiceItems = invoice.items || []
   const subtotal = invoice.subtotal || invoiceItems.reduce((sum, item) => sum + (item.subtotal || 0), 0)
-  const taxAmount = (subtotal * (invoice.tax_percent || 11)) / 100
+  const taxAmount = (subtotal * (invoice.tax_percent ?? 0)) / 100
   const grandTotal = invoice.total || subtotal + taxAmount
 
   return (
@@ -266,7 +269,7 @@ export default function InvoiceDetailPage() {
                     Jasa Pembuatan Website Professional
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    hello@cuanpage.com | +62 812-3456-7890
+                    cuanpage.my.id | +62 857-1061-5365
                   </p>
                 </div>
                 <div className="text-right">
@@ -333,7 +336,7 @@ export default function InvoiceDetailPage() {
                 </div>
                 <div className="flex justify-end gap-8">
                   <span className="text-muted-foreground">
-                    Pajak ({invoice.tax_percent || 11}%)
+                    Pajak ({invoice.tax_percent ?? 0}%)
                   </span>
                   <span className="w-32">{formatRupiah(taxAmount)}</span>
                 </div>

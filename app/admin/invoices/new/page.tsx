@@ -52,7 +52,7 @@ export default function NewInvoicePage() {
   const [selectedService, setSelectedService] = useState("")
   const [dueDate, setDueDate] = useState("")
   const [taxRate, setTaxRate] = useState(11)
-  const [notes, setNotes] = useState("Pembayaran dapat dilakukan melalui transfer bank ke rekening:\nBCA - 1234567890 a.n. CuanPage")
+  const [notes, setNotes] = useState("Pembayaran dapat dilakukan melalui transfer bank ke rekening:\nBSI - 7219537462 a.n. Muhammad Rahadian Dzaki")
   const [lineItems, setLineItems] = useState<LineItem[]>([
     { id: 1, description: "", qty: 1, price: 0 },
   ])
@@ -215,6 +215,9 @@ const handlePrint = () => {
           .totals div { display: flex; justify-content: flex-end; gap: 4rem; margin-bottom: 4px; }
           .notes { border-top: 1px solid #ddd; padding-top: 1rem; }
           pre { white-space: pre-wrap; font-family: sans-serif; font-size: 13px; }
+          .justify-end { justify-content: flex-end; }
+        .gap-8 { gap: 2rem; }
+        .w-32 { width: 8rem; display: inline-block; text-align: right; }
         </style>
       </head>
       <body>

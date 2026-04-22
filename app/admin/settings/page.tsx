@@ -24,7 +24,7 @@ export default function SettingsPage() {
   const [invoiceSettings, setInvoiceSettings] = useState({
     prefix: "CP-",
     defaultTax: 11,
-    terms: "Pembayaran dapat dilakukan melalui transfer bank ke rekening:\nBCA - 1234567890 a.n. CuanPage\n\nHarap sertakan nomor invoice pada berita acara transfer.",
+    terms: "Pembayaran dapat dilakukan melalui transfer bank ke rekening:\nBSI - 7219537462 a.n. Muhammad Rahadian Dzaki\n\nHarap sertakan nomor invoice pada berita acara transfer.",
   })
 
   const [notifications, setNotifications] = useState({
